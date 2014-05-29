@@ -385,7 +385,7 @@ cmpToken cmpToken_Create(cmpLexerCursor* cur, enum cmpTokenType type, cmpU32 len
 
 
 
-typedef cmpBool (*cmpLexer_Predicate)(cmpLexerCursor* cur, char c, void* state);
+typedef cmpBool (*cmpLexer_Predicate)(cmpLexerCursor* cur, cmpToken* token, char c, void* state);
 
 
 static cmpToken cmpLexer_ConsumeTokenPred(cmpLexerCursor* cur, enum cmpTokenType type, cmpU32 initial_length, cmpLexer_Predicate p, void* state)
@@ -401,7 +401,7 @@ static cmpToken cmpLexer_ConsumeTokenPred(cmpLexerCursor* cur, enum cmpTokenType
 		if (c == EOF)
 			break;
 
-		if (!p(cur, c, state))
+		if (!p(cur, &token, c, state))
 			break;
 
 		cmpLexerCursor_ConsumeChar(cur);
@@ -412,12 +412,13 @@ static cmpToken cmpLexer_ConsumeTokenPred(cmpLexerCursor* cur, enum cmpTokenType
 }
 
 
-static cmpBool cmpLexer_IsCComment(cmpLexerCursor* cur, char c, void* state)
+static cmpBool cmpLexer_IsCComment(cmpLexerCursor* cur, cmpToken* token, char c, void* state)
 {
 	char* last_c = (char*)state;
 	if (*last_c == '*' && c == '/')
 	{
 		cmpLexerCursor_ConsumeChar(cur);
+		token->length++;
 		return CMP_FALSE;
 	}
 
@@ -430,19 +431,20 @@ static cmpBool cmpLexer_IsCComment(cmpLexerCursor* cur, char c, void* state)
 }
 
 
-static cmpBool cmpLexer_IsCppComment(cmpLexerCursor* cur, char c, void* state)
+static cmpBool cmpLexer_IsCppComment(cmpLexerCursor* cur, cmpToken* token, char c, void* state)
 {
 	// Don't consume EOL, let outer-loop character match increment line number
 	return c != '\n';
 }
 
 
-static cmpBool cmpLexer_IsString(cmpLexerCursor* cur, char c, void* state)
+static cmpBool cmpLexer_IsString(cmpLexerCursor* cur, cmpToken* token, char c, void* state)
 {
 	if (c == '"')
 	{
 		// Consume closing quotation
 		cmpLexerCursor_ConsumeChar(cur);
+		token->length++;
 		return CMP_FALSE;
 	}
 
@@ -450,7 +452,7 @@ static cmpBool cmpLexer_IsString(cmpLexerCursor* cur, char c, void* state)
 }
 
 
-static cmpBool cmpLexer_IsNumber(cmpLexerCursor* cur, char c, void* state)
+static cmpBool cmpLexer_IsNumber(cmpLexerCursor* cur, cmpToken* token, char c, void* state)
 {
 	cmpBool* had_period = (cmpBool*)state;
 	if (c == '.')
@@ -464,7 +466,7 @@ static cmpBool cmpLexer_IsNumber(cmpLexerCursor* cur, char c, void* state)
 
 
 
-static cmpBool cmpLexer_IsSymbol(cmpLexerCursor* cur, char c, void* state)
+static cmpBool cmpLexer_IsSymbol(cmpLexerCursor* cur, cmpToken* token, char c, void* state)
 {
 	return (c == '_' || isalpha(c) || isdigit(c)) ? CMP_TRUE : CMP_FALSE;
 }
