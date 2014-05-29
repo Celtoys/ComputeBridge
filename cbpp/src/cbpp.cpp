@@ -160,7 +160,7 @@ public:
 		error = cmpParserCursor_Error(m_ParserCursor);
 		if (!cmpError_OK(&error))
 		{
-			printf("%s(%d): %s\n", g_InputFilename.c_str(), cmpLexerCursor_Line(m_LexerCursor), cmpError_Text(&error));
+			printf("%s(%d): %s\n", g_InputFilename.c_str(), cmpParserCursor_Line(m_ParserCursor), cmpError_Text(&error));
 			return 1;
 		}
 

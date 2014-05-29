@@ -193,6 +193,8 @@ cmpError cmpParserCursor_Create(cmpParserCursor** cursor, const cmpToken* tokens
 
 void cmpParserCursor_Destroy(cmpParserCursor* cursor);
 
+cmpU32 cmpParserCursor_Line(cmpParserCursor* cursor);
+
 cmpError cmpParserCursor_Error(cmpParserCursor* cursor);
 
 

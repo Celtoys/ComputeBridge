@@ -193,7 +193,7 @@ cmpError cmpLexerCursor_Create(cmpLexerCursor** cursor, const char* file_data, c
 	(*cursor)->file_data = file_data;
 	(*cursor)->file_size = file_size;
 	(*cursor)->position = 0;
-	(*cursor)->line = 0;
+	(*cursor)->line = 1;
 	(*cursor)->line_position = 0;
 	(*cursor)->error = cmpError_CreateOK();
 
@@ -373,6 +373,7 @@ cmpToken cmpToken_Create(cmpLexerCursor* cur, enum cmpTokenType type, cmpU32 len
 	token.type = type;
 	token.start = cmpLexerCursor_PeekChars(cur, 0);
 	token.length = length;
+	token.line = cur->line;
 	return token;
 }
 
@@ -637,6 +638,9 @@ struct cmpParserCursor
 	// Current position in the token array
 	cmpU32 position;
 
+	// Current line number, as read from the latest token
+	cmpU32 line;
+
 	// Last error encountered
 	cmpError error;
 };
@@ -669,6 +673,13 @@ void cmpParserCursor_Destroy(cmpParserCursor* cursor)
 }
 
 
+cmpU32 cmpParserCursor_Line(cmpParserCursor* cursor)
+{
+	assert(cursor != NULL);
+	return cursor->line;
+}
+
+
 cmpError cmpParserCursor_Error(cmpParserCursor* cursor)
 {
 	assert(cursor != NULL);
@@ -681,9 +692,14 @@ static const cmpToken* cmpParserCursor_PeekToken(cmpParserCursor* cursor, cmpU32
 	assert(cursor != NULL);
 
 	// Nothing to read at EOF
-	if (cursor->position + lookahead >= cursor->nb_tokens)
-		return NULL;
-	return cursor->tokens + cursor->position + lookahead;
+	if (cursor->position + lookahead < cursor->nb_tokens)
+	{
+		const cmpToken* token = cursor->tokens + cursor->position + lookahead;
+		cursor->line = token->line;
+		return token;
+	}
+
+	return NULL;
 }
 
 
