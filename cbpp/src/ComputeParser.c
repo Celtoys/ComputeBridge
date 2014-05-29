@@ -655,6 +655,7 @@ cmpError cmpParserCursor_Create(cmpParserCursor** cursor, const cmpToken* tokens
 	(*cursor)->tokens = tokens;
 	(*cursor)->nb_tokens = nb_tokens;
 	(*cursor)->position = 0;
+	(*cursor)->line = 0;
 	(*cursor)->error = cmpError_CreateOK();
 
 	return cmpError_CreateOK();
