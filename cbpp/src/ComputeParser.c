@@ -1026,12 +1026,9 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 			return NULL;
 		}
 
-		// If no statement block is encountered, change this to a declaration
+		// No statement block encountered, this is a typical statement
 		if (token->type == cmpToken_SemiColon)
-		{
-			cmpParserCursor_ConsumeToken(cur);
 			break;
-		}
 
 		// Recurse into a statement block
 		if (token->type == cmpToken_LBrace)
