@@ -136,11 +136,16 @@ enum cmpTokenType
 	cmpToken_Not = '!',
 	cmpToken_Question = '?',
 
+	// High-level tokens
 	cmpToken_Comment,
 	cmpToken_String,
 	cmpToken_Number,
 	cmpToken_Symbol,
 	cmpToken_EOL,
+
+	// Keyword tokens
+	cmpToken_Typedef,
+	cmpToken_Struct,
 };
 
 // Return the name of a given token
@@ -210,6 +215,11 @@ enum cmpNodeType
 	cmpNode_StatementBlock,
 	cmpNode_FunctionDefn,
 	cmpNode_FunctionDecl,
+	cmpNode_StructDefn,
+	cmpNode_StructDecl,
+	cmpNode_StructTag,
+	cmpNode_StructName,
+	cmpNode_Typedef,
 
 	// Points directly to a single token that can be ignored semantically but used for rewriting
 	cmpNode_Token,

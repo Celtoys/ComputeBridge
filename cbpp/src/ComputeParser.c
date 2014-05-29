@@ -343,6 +343,8 @@ const char* cmpTokenType_Name(enum cmpTokenType type)
 		case cmpToken_Number: return "cmpToken_Number";
 		case cmpToken_Symbol: return "cmpToken_Symbol";
 		case cmpToken_EOL: return "cmpToken_EOL";
+		case cmpToken_Typedef: return "cmpToken_Typedef";
+		case cmpToken_Struct: return "cmpToken_Struct";
 	}
 
 	return "<INTERNAL-ERROR> No token name found";
@@ -469,6 +471,59 @@ static cmpBool cmpLexer_IsNumber(cmpLexerCursor* cur, cmpToken* token, char c, v
 static cmpBool cmpLexer_IsSymbol(cmpLexerCursor* cur, cmpToken* token, char c, void* state)
 {
 	return (c == '_' || isalpha(c) || isdigit(c)) ? CMP_TRUE : CMP_FALSE;
+}
+
+
+static cmpU32 sdbm_hash(const char* str, cmpU32 length)
+{
+	cmpU32 c, hash = 0;
+
+	// If caller doesn't set the length, calculate it here
+	if (length == 0)
+		length = strlen(str);
+
+	// Permute hash until terminating NULL or length runs out
+	while ((c = *str++) && length--)
+		hash = c + (hash << 6) + (hash << 16) - hash;
+
+	return hash;
+}
+
+
+// Lazy-initialised hashes for all keywords - assumes no collisions
+static cmpU32 HASH_typedef = 0;
+static cmpU32 HASH_struct = 0;
+
+
+static void cmpLexer_IdentifyKeywordTokens(cmpToken* token)
+{	
+	cmpU32 token_hash;
+
+	assert(token != NULL);
+	assert(token->start != NULL);
+
+	// Initialise keyword hashes first-time round
+	if (HASH_typedef == 0)
+	{
+		HASH_typedef = sdbm_hash("typedef", 0);
+		HASH_struct = sdbm_hash("struct", 0);
+	}
+
+	// Switch on first character to reduce token hashing and sequential compares
+	switch (token->start[0])
+	{
+		case 't':
+			token_hash = sdbm_hash(token->start, token->length);
+			if (token_hash == HASH_typedef)
+				token->type = cmpToken_Typedef;
+			break;
+
+		case 's':
+			token_hash = sdbm_hash(token->start, token->length);
+			if (token_hash == HASH_struct)
+				token->type = cmpToken_Struct;
+			break;
+	}
 }
 
 
@@ -619,7 +674,9 @@ start:
 		case 'X':
 		case 'Y':
 		case 'Z':
-			return cmpLexer_ConsumeTokenPred(cur, cmpToken_Symbol, 1, cmpLexer_IsSymbol, NULL);
+			token = cmpLexer_ConsumeTokenPred(cur, cmpToken_Symbol, 1, cmpLexer_IsSymbol, NULL);
+			cmpLexer_IdentifyKeywordTokens(&token);
+			return token;
 
 		default:
 			error = cmpError_Create("Unexpected character '%x'(%c)", c, c);
@@ -743,6 +800,12 @@ const char* cmpNodeType_Name(enum cmpNodeType type)
 		case cmpNode_StatementBlock: return "cmpNode_StatementBlock";
 		case cmpNode_FunctionDefn: return "cmpNode_FunctionDefn";
 		case cmpNode_FunctionDecl: return "cmpNode_FunctionDecl";
+		case cmpNode_StructDefn: return "cmpNode_StructDefn";
+		case cmpNode_StructDecl: return "cmpNode_StructDecl";
+		case cmpNode_StructTag: return "cmpNode_StructTag";
+		case cmpNode_StructName: return "cmpNode_StructName";
+		case cmpNode_Typedef: return "cmpNode_Typedef";
+		case cmpNode_Token: return "cmpNode_Token";
 	}
 
 	return "<INTERNAL-ERROR> No node name found";
@@ -850,7 +913,7 @@ static cmpNode* cmpParser_ConsumePPDirective(cmpParserCursor* cur)
 static cmpNode* cmpParser_ConsumeStatementBlock(cmpParserCursor* cur);
 
 
-static cmpBool cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
+static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 {
 	// Skip over all parameters
 	cmpU32 nb_brackets = 0;
@@ -862,7 +925,7 @@ static cmpBool cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 			cmpError error = cmpError_Create("Unexpected EOF when parsing function parameters");
 			cmpParserCursor_SetError(cur, &error);
 			cmpNode_Destroy(node);
-			return CMP_FALSE;
+			return NULL;
 		}
 
 		if (token->type == cmpToken_LBracket)
@@ -887,7 +950,7 @@ static cmpBool cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 		if (child_node == NULL)
 		{
 			cmpNode_Destroy(node);
-			return CMP_FALSE;
+			return NULL;
 		}
 
 		// Add everything encountered as a child
@@ -908,15 +971,12 @@ static cmpBool cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 		}
 	}
 
-	return CMP_TRUE;
+	return node;
 }
 
 
 static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 {
-	const cmpToken* t0;
-	const cmpToken* t1;
-
 	// Create the node
 	cmpNode* node;
 	cmpError error = cmpNode_Create(&node, cmpNode_Statement, cur);
@@ -951,11 +1011,7 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 	{
 		const cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
 		if (token->type == cmpToken_LBracket)
-		{
-			if (!cmpParser_ConsumeFunction(cur, node))
-				return NULL;
-			return node;
-		}
+			return cmpParser_ConsumeFunction(cur, node);
 	}
 
 	// Now consume child statements if this is a definition
@@ -996,13 +1052,160 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 		node->nb_tokens++;
 	}
 
-	// Hacky check to see if this is naming a struct
-	t0 = cmpParserCursor_PeekToken(cur, 0);
-	t1 = cmpParserCursor_PeekToken(cur, 1);
-	if (t0 != NULL && t1 != NULL && t0->type == cmpToken_Symbol && t1->type == cmpToken_SemiColon)
+	return node;
+}
+
+
+static cmpBool cmpParser_ConsumeTypedefStructName(cmpParserCursor* cur, cmpNode* node)
+{
+	const cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
+	if (token != NULL && token->type == cmpToken_Symbol)
+	{
+		cmpNode* child_node;
+		cmpError error = cmpNode_Create(&child_node, cmpNode_StructName, cur);
+		if (!cmpError_OK(&error))
+		{
+			cmpParserCursor_SetError(cur, &error);
+			return CMP_FALSE;
+		}
+
+		cmpParserCursor_ConsumeToken(cur);
+		cmpNode_AddChild(node, child_node);
+		node->type = cmpNode_StructDecl;
+		return CMP_TRUE;
+	}
+
+	return CMP_FALSE;
+}
+
+
+static cmpNode* cmpParser_ConsumeStruct(cmpParserCursor* cur)
+{
+	const cmpToken* next_token;
+	cmpBool name_is_tag = CMP_FALSE;
+
+	// Create the node
+	cmpNode* node;
+	cmpError error = cmpNode_Create(&node, cmpNode_StructDefn, cur);
+	if (!cmpError_OK(&error))
+	{
+		cmpParserCursor_SetError(cur, &error);
+		return NULL;
+	}
+	cmpParserCursor_ConsumeToken(cur);
+
+	// Input can either be "struct" or "typedef struct" so consume the struct
+	next_token = cmpParserCursor_PeekToken(cur, 0);
+	if (next_token != NULL && next_token->type == cmpToken_Struct)
 	{
 		cmpParserCursor_ConsumeToken(cur);
+		node->nb_tokens++;
+		name_is_tag = CMP_TRUE;
+	}
+
+	// Consume tag or name
+	next_token = cmpParserCursor_PeekToken(cur, 0);
+	if (next_token != NULL && next_token->type == cmpToken_Symbol)
+	{
+		cmpNode* child_node;
+
+		if (name_is_tag)
+		{
+			// typedef struct TAG
+			error = cmpNode_Create(&child_node, cmpNode_StructTag, cur);
+		}
+		else
+		{
+			// struct NAME
+			error = cmpNode_Create(&child_node, cmpNode_StructName, cur);
+		}
+
+		if (!cmpError_OK(&error))
+		{
+			cmpParserCursor_SetError(cur, &error);
+			return NULL;
+		}
+
 		cmpParserCursor_ConsumeToken(cur);
+		cmpNode_AddChild(node, child_node);
+	}
+
+	// If a symbol follows, this is a "typedef struct" forward declaration
+	if (name_is_tag && cmpParser_ConsumeTypedefStructName(cur, node))
+		return node;
+
+	// Parse the struct body, if it exists
+	while (1)
+	{
+		cmpNode* child_node = cmpParser_ConsumeNode(cur);
+		if (child_node == NULL)
+		{
+			cmpNode_Destroy(node);
+			return NULL;
+		}
+
+		// Add everything encountered as a child
+		cmpNode_AddChild(node, child_node);
+
+		// Terminate as a structure declaration
+		if (child_node->type == cmpNode_Token && child_node->start_token->type == cmpToken_SemiColon)
+		{
+			node->type = cmpNode_StructDecl;
+			break;
+		}
+
+		// Terminate as a struct definition
+		if (child_node->type == cmpNode_StatementBlock)
+		{
+			node->type = cmpNode_StructDefn;
+			break;
+		}
+	}
+
+	// If this is a "typedef struct", try to consume a name
+	if (name_is_tag)
+		cmpParser_ConsumeTypedefStructName(cur, node);
+
+	return node;
+}
+
+
+static cmpNode* cmpParser_ConsumeTypedef(cmpParserCursor* cur)
+{
+	cmpNode* node;
+	cmpError error;
+
+	// Redirect as a struct if this is "typedef struct"
+	const cmpToken* next_token = cmpParserCursor_PeekToken(cur, 1);
+	if (next_token != NULL && next_token->type == cmpToken_Struct)
+		return cmpParser_ConsumeStruct(cur);
+
+	// Create the node
+	error = cmpNode_Create(&node, cmpNode_Typedef, cur);
+	if (!cmpError_OK(&error))
+	{
+		cmpParserCursor_SetError(cur, &error);
+		return NULL;
+	}
+	cmpParserCursor_ConsumeToken(cur);
+
+	// Consume all tokens until the semi-colon
+	while (1)
+	{
+		const cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
+		if (token == NULL)
+		{
+			error = cmpError_Create("Unexpected EOF when parsing typedef");
+			cmpParserCursor_SetError(cur, &error);
+			cmpNode_Destroy(node);
+			return NULL;
+		}
+
+		if (token->type == cmpToken_SemiColon)
+			break;
+
+		cmpParserCursor_ConsumeToken(cur);
+		node->nb_tokens++;
 	}
 
 	return node;
@@ -1079,6 +1282,12 @@ cmpNode* cmpParser_ConsumeNode(cmpParserCursor* cur)
 		// Pre-processor directives
 		case cmpToken_Hash:
 			return cmpParser_ConsumePPDirective(cur);
+
+		case cmpToken_Typedef:
+			return cmpParser_ConsumeTypedef(cur);
+
+		case cmpToken_Struct:
+			return cmpParser_ConsumeStruct(cur);
 
 		// Statements
 		case cmpToken_Symbol:
