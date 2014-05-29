@@ -1012,13 +1012,25 @@ static cmpNode* cmpParser_ConsumeStatementBlock(cmpParserCursor* cur)
 }
 
 
+static cmpNode* cmpParser_ConsumeToken(cmpParserCursor* cur)
+{
+	// Create the node
+	cmpNode* node;
+	cmpError error = cmpNode_Create(&node, cmpNode_Token, cur);
+	if (!cmpError_OK(&error))
+	{
+		cmpParserCursor_SetError(cur, &error);
+		return NULL;
+	}
+	cmpParserCursor_ConsumeToken(cur);
+	return node;
+}
+
+
 cmpNode* cmpParser_ConsumeNode(cmpParserCursor* cur)
 {
-	const cmpToken* token;
 	cmpError error;
-
-start:
-	token = cmpParserCursor_PeekToken(cur, 0);
+	const cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
 	if (token == NULL)
 		return NULL;
 
@@ -1028,8 +1040,7 @@ start:
 		case cmpToken_SemiColon:
 		case cmpToken_Comment:
 		case cmpToken_EOL:
-			cmpParserCursor_ConsumeToken(cur);
-			goto start;
+			return cmpParser_ConsumeToken(cur);
 
 		// Pre-processor directives
 		case cmpToken_Hash:

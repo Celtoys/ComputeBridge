@@ -210,6 +210,9 @@ enum cmpNodeType
 	cmpNode_StatementBlock,
 	cmpNode_FunctionDefn,
 	cmpNode_FunctionDecl,
+
+	// Points directly to a single token that can be ignored semantically but used for rewriting
+	cmpNode_Token,
 };
 
 const char* cmpNodeType_Name(enum cmpNodeType type);
