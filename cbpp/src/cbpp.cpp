@@ -16,8 +16,6 @@
 //
 
 
-#include <cstdio>
-#include <cstdarg>
 #include <string>
 #include <vector>
 
@@ -30,6 +28,7 @@ bool g_PrintHelp = false;
 bool g_Verbose = false;
 
 std::string g_InputFilename;
+std::string g_OutputFilename;
 
 
 #define LOG if (g_Verbose) printf
@@ -59,6 +58,12 @@ const char* ParseArguments(int argc, const char* argv[])
 			else if (!strcmpi(arg, "-verbose"))
 			{
 				g_Verbose = true;
+			}
+
+			else if (!strcmpi(arg, "-output") && i < argc - 1)
+			{
+				g_OutputFilename = argv[i + 1];
+				i++;
 			}
 		}
 
@@ -106,15 +111,15 @@ public:
 	{
 	}
 
-	int Execute()
+	bool Parse(const char* filename)
 	{
 		// Open the input file
-		LOG("Opening file '%s'\n", g_InputFilename.c_str());
-		cmpError error = cmpMemoryFile_Create(&m_MemoryFile, g_InputFilename.c_str());
+		LOG("Opening file '%s'\n", filename);
+		cmpError error = cmpMemoryFile_Create(&m_MemoryFile, filename);
 		if (!cmpError_OK(&error))
 		{
 			printf("Error opening input file: %s\n\n", cmpError_Text(&error));
-			return 1;
+			return false;
 		}
 
 		// Build a list of tokens
@@ -123,7 +128,7 @@ public:
 		if (!cmpError_OK(&error))
 		{
 			printf("Error creating lexer cursor: %s\n\n", cmpError_Text(&error));
-			return 1;
+			return false;
 		}
 		while (cmpToken token = cmpLexer_ConsumeToken(m_LexerCursor))
 		{
@@ -135,8 +140,8 @@ public:
 		error = cmpLexerCursor_Error(m_LexerCursor);
 		if (!cmpError_OK(&error))
 		{
-			printf("%s(%d): %s\n", g_InputFilename.c_str(), cmpLexerCursor_Line(m_LexerCursor), cmpError_Text(&error));
-			return 1;
+			printf("%s(%d): %s\n", filename, cmpLexerCursor_Line(m_LexerCursor), cmpError_Text(&error));
+			return false;
 		}
 
 		// Build a list of parser nodes
@@ -145,7 +150,7 @@ public:
 		if (!cmpError_OK(&error))
 		{
 			printf("Error creating parser cursor: %s\n\n", cmpError_Text(&error));
-			return 1;
+			return false;
 		}
 		while (cmpNode* node = cmpParser_ConsumeNode(m_ParserCursor))
 			m_Nodes.push_back(node);
@@ -160,11 +165,24 @@ public:
 		error = cmpParserCursor_Error(m_ParserCursor);
 		if (!cmpError_OK(&error))
 		{
-			printf("%s(%d): %s\n", g_InputFilename.c_str(), cmpParserCursor_Line(m_ParserCursor), cmpError_Text(&error));
-			return 1;
+			printf("%s(%d): %s\n",filename, cmpParserCursor_Line(m_ParserCursor), cmpError_Text(&error));
+			return false;
 		}
 
-		return 0;
+		return true;
+	}
+
+	bool EmitFile(const char* filename)
+	{
+		FILE* fp = fopen(filename, "wb");
+		if (fp == NULL)
+			return false;
+
+		for (size_t i = 0; i < m_Nodes.size(); i++)
+			EmitNode(fp, m_Nodes[i]);
+
+		fclose(fp);
+		return true;
 	}
 
 	~ComputeProcessor()
@@ -183,6 +201,28 @@ public:
 	}
 
 private:
+	void EmitNode(FILE* fp, const cmpNode* node)
+	{
+		bool is_define = false;
+		for (cmpU32 i = 0; i < node->nb_tokens; i++)
+		{
+			const cmpToken& token = node->start_token[i];
+
+			// HACK! will clean this up later
+			if (node->type == cmpNode_PPDirective &&
+				!strncmp(token.start, "define", token.length))
+				is_define = true;
+			bool join_tokens = is_define && i == 2 && i < node->nb_tokens - 1 && node->start_token[i + 1].type == cmpToken_LBracket;
+			if (join_tokens)
+				fprintf(fp, "%.*s", token.length, token.start);
+			else 
+				fprintf(fp, "%.*s ", token.length, token.start);
+		}
+
+		for (const cmpNode* child = node->first_child; child != 0; child = child->next_sibling)
+			EmitNode(fp, child);
+	}
+
 	// Parser runtime
 	cmpMemoryFile* m_MemoryFile;
 	cmpLexerCursor* m_LexerCursor;
@@ -212,5 +252,17 @@ int main(int argc, const char* argv[])
 		PrintUsage();
 
 	ComputeProcessor processor;
-	return processor.Execute();
+	if (!processor.Parse(g_InputFilename.c_str()))
+		return 1;
+
+	if (!g_OutputFilename.empty())
+	{
+		if (!processor.EmitFile(g_OutputFilename.c_str()))
+		{
+			printf("Couldn't write to output file %s\n", g_OutputFilename.c_str());
+			return 1;
+		}
+	}
+
+	return 0;
 }
