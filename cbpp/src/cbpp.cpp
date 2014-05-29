@@ -125,10 +125,9 @@ public:
 			printf("Error creating lexer cursor: %s\n\n", cmpError_Text(&error));
 			return 1;
 		}
-		std::vector<cmpToken> tokens;
 		while (cmpToken token = cmpLexer_ConsumeToken(m_LexerCursor))
 		{
-			tokens.push_back(token);
+			m_Tokens.push_back(token);
 			LOG("[0x%2x] %s %d\n", token.type, cmpTokenType_Name(token.type), token.length);
 		}
 
@@ -142,24 +141,20 @@ public:
 
 		// Build a list of parser nodes
 		LOG("Running parser\n");
-		error = cmpParserCursor_Create(&m_ParserCursor, tokens.data(), tokens.size());
+		error = cmpParserCursor_Create(&m_ParserCursor, m_Tokens.data(), m_Tokens.size());
 		if (!cmpError_OK(&error))
 		{
 			printf("Error creating parser cursor: %s\n\n", cmpError_Text(&error));
 			return 1;
 		}
-		std::vector<cmpNode*> nodes;
 		while (cmpNode* node = cmpParser_ConsumeNode(m_ParserCursor))
-			nodes.push_back(node);
+			m_Nodes.push_back(node);
 
 		if (g_Verbose)
 		{
-			for (size_t i = 0; i < nodes.size(); i++)
-				cmpParser_LogNodes(nodes[i], 0);
+			for (size_t i = 0; i < m_Nodes.size(); i++)
+				cmpParser_LogNodes(m_Nodes[i], 0);
 		}
-
-		for (std::size_t i = 0; i < nodes.size(); i++)
-			delete nodes[i];
 
 		// Print any parser errors
 		error = cmpParserCursor_Error(m_ParserCursor);
@@ -174,6 +169,9 @@ public:
 
 	~ComputeProcessor()
 	{
+		for (std::size_t i = 0; i < m_Nodes.size(); i++)
+			cmpNode_Destroy(m_Nodes[i]);
+
 		if (m_ParserCursor != 0)
 			cmpParserCursor_Destroy(m_ParserCursor);
 
@@ -185,11 +183,14 @@ public:
 	}
 
 private:
+	// Parser runtime
 	cmpMemoryFile* m_MemoryFile;
-
 	cmpLexerCursor* m_LexerCursor;
-
 	cmpParserCursor* m_ParserCursor;
+
+	// Generated tokens and AST
+	std::vector<cmpToken> m_Tokens;
+	std::vector<cmpNode*> m_Nodes;
 };
 
 
