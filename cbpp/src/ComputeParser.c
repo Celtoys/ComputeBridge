@@ -689,7 +689,8 @@ static const cmpToken* cmpParserCursor_PeekToken(cmpParserCursor* cursor, cmpU32
 static const cmpToken* cmpParserCursor_ConsumeToken(cmpParserCursor* cursor)
 {
 	const cmpToken* token = cmpParserCursor_PeekToken(cursor, 0);
-	cursor->position++;
+	if (cursor->position < cursor->nb_tokens)
+		cursor->position++;
 	return token;
 }
 
