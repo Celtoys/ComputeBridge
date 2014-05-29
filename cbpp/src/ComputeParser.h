@@ -117,24 +117,49 @@ enum cmpTokenType
 	cmpToken_RBracket = ')',
 	cmpToken_LSqBracket = '[',
 	cmpToken_RSqBracket = ']',
-	cmpToken_LAngle = '<',
-	cmpToken_RAngle = '>',
 	cmpToken_Colon = ':',
 	cmpToken_SemiColon = ';',
-	cmpToken_Hash = '#',
+	cmpToken_Period = '.',
+	cmpToken_Question = '?',
+	cmpToken_Tilde = '~',
+	cmpToken_LAngle = '<',
+	cmpToken_RAngle = '>',
 	cmpToken_Plus = '+',
 	cmpToken_Minus = '-',
 	cmpToken_Asterisk = '*',
 	cmpToken_Divide = '/',
 	cmpToken_Modulo = '%',
-	cmpToken_Period = '.',
 	cmpToken_Equals = '=',
 	cmpToken_And = '&',
 	cmpToken_Or = '|',
 	cmpToken_Xor = '^',
-	cmpToken_Tilde = '~',
 	cmpToken_Not = '!',
-	cmpToken_Question = '?',
+	cmpToken_Hash = '#',
+
+	// Used to ensure no tokens that follow have the same enum value as the single character tokens
+	cmpToken_InvalidSeparator = 1000,
+
+	// Composite operator tokens
+	cmpToken_LessEqual,
+	cmpToken_ShiftLeft,
+	cmpToken_GreaterEqual,
+	cmpToken_ShiftRight,
+	cmpToken_PlusEqual,
+	cmpToken_Increment,
+	cmpToken_MinusEqual,
+	cmpToken_Decrement,
+	cmpToken_Pointer,
+	cmpToken_MultiplyEqual,
+	cmpToken_DivideEqual,
+	cmpToken_ModuloEqual,
+	cmpToken_EqualCompare,
+	cmpToken_AndEqual,
+	cmpToken_AndCompare,
+	cmpToken_OrEqual,
+	cmpToken_OrCompare,
+	cmpToken_XorEqual,
+	cmpToken_NotEqualCompare,
+	cmpToken_SymbolJoin,
 
 	// High-level tokens
 	cmpToken_Comment,
@@ -181,7 +206,6 @@ typedef struct
 //
 // --- cmpLexer ----------------------------------------------------------------------------------------
 // Very loose Lexer for C-style languages
-// Example: matches tokens such as "*=" or ">=", as composite tokens "*","=" and ">","="
 // Single function for returning the current token at the cursor and advancing to the next one.
 // The last token read will always be of type cmpToken_None.
 //

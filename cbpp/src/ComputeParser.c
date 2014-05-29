@@ -22,6 +22,7 @@
 #include <malloc.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <string.h>
 
 
 
@@ -320,24 +321,44 @@ const char* cmpTokenType_Name(enum cmpTokenType type)
 		case cmpToken_RBracket: return "cmpToken_RBracket";
 		case cmpToken_LSqBracket: return "cmpToken_LSqBracket";
 		case cmpToken_RSqBracket: return "cmpToken_RSqBracket";
-		case cmpToken_LAngle: return "cmpToken_LAngle";
-		case cmpToken_RAngle: return "cmpToken_RAngle";
 		case cmpToken_Colon: return "cmpToken_Colon";
 		case cmpToken_SemiColon: return "cmpToken_SemiColon";
-		case cmpToken_Hash: return "cmpToken_Hash";
+		case cmpToken_Period: return "cmpToken_Period";
+		case cmpToken_Question: return "cmpToken_Question";
+		case cmpToken_Tilde: return "cmpToken_Tilde";
+		case cmpToken_LAngle: return "cmpToken_LAngle";
+		case cmpToken_RAngle: return "cmpToken_RAngle";
 		case cmpToken_Plus: return "cmpToken_Plus";
 		case cmpToken_Minus: return "cmpToken_Minus";
 		case cmpToken_Asterisk: return "cmpToken_Asterisk";
 		case cmpToken_Divide: return "cmpToken_Divide";
 		case cmpToken_Modulo: return "cmpToken_Modulo";
-		case cmpToken_Period: return "cmpToken_Period";
 		case cmpToken_Equals: return "cmpToken_Equals";
 		case cmpToken_And: return "cmpToken_And";
 		case cmpToken_Or: return "cmpToken_Or";
 		case cmpToken_Xor: return "cmpToken_Xor";
-		case cmpToken_Tilde: return "cmpToken_Tilde";
 		case cmpToken_Not: return "cmpToken_Not";
-		case cmpToken_Question: return "cmpToken_Question";
+		case cmpToken_Hash: return "cmpToken_Hash";
+		case cmpToken_InvalidSeparator: return "cmpToken_InvalidSeparator";
+		case cmpToken_LessEqual: return "cmpToken_LessEqual";
+		case cmpToken_ShiftLeft: return "cmpToken_ShiftLeft";
+		case cmpToken_GreaterEqual: return "cmpToken_GreaterEqual";
+		case cmpToken_ShiftRight: return "cmpToken_ShiftRight";
+		case cmpToken_PlusEqual: return "cmpToken_PlusEqual";
+		case cmpToken_Increment: return "cmpToken_Increment";
+		case cmpToken_MinusEqual: return "cmpToken_MinusEqual";
+		case cmpToken_Decrement: return "cmpToken_Decrement";
+		case cmpToken_Pointer: return "cmpToken_Pointer";
+		case cmpToken_MultiplyEqual: return "cmpToken_MultiplyEqual";
+		case cmpToken_DivideEqual: return "cmpToken_DivideEqual";
+		case cmpToken_ModuloEqual: return "cmpToken_ModuloEqual";
+		case cmpToken_EqualCompare: return "cmpToken_EqualCompare";
+		case cmpToken_AndEqual: return "cmpToken_AndEqual";
+		case cmpToken_AndCompare: return "cmpToken_AndCompare";
+		case cmpToken_OrEqual: return "cmpToken_OrEqual";
+		case cmpToken_OrCompare: return "cmpToken_OrCompare";
+		case cmpToken_XorEqual: return "cmpToken_XorEqual";
+		case cmpToken_NotEqualCompare: return "cmpToken_NotEqualCompare";
 		case cmpToken_Comment: return "cmpToken_Comment";
 		case cmpToken_String: return "cmpToken_String";
 		case cmpToken_Number: return "cmpToken_Number";
@@ -527,6 +548,57 @@ static void cmpLexer_IdentifyKeywordTokens(cmpToken* token)
 }
 
 
+//
+// Tables that map the possible permutations from a single character that operators can take
+//
+typedef struct
+{
+	char c;
+	enum cmpTokenType type;
+} OpMatch;
+static OpMatch OP_LAngle[] = { '=', cmpToken_LessEqual, '<', cmpToken_ShiftLeft, 0 };
+static OpMatch OP_RAngle[] = { '=', cmpToken_GreaterEqual, '>', cmpToken_ShiftRight, 0 };
+static OpMatch OP_Plus[] = { '=', cmpToken_PlusEqual, '+', cmpToken_Increment, 0 };
+static OpMatch OP_Minus[] = { '=', cmpToken_MinusEqual, '-', cmpToken_Decrement, '>', cmpToken_Pointer, 0 };
+static OpMatch OP_Asterisk[] = { '=', cmpToken_MultiplyEqual, 0 };
+static OpMatch OP_Divide[] = { '=', cmpToken_DivideEqual, 0 };
+static OpMatch OP_Modulo[] = { '=', cmpToken_ModuloEqual, 0 };
+static OpMatch OP_Equals[] = { '=', cmpToken_EqualCompare, 0 };
+static OpMatch OP_And[] = { '=', cmpToken_AndEqual, '&', cmpToken_AndCompare, 0 };
+static OpMatch OP_Or[] = { '=', cmpToken_OrEqual, '|', cmpToken_OrCompare, 0 };
+static OpMatch OP_Xor[] = { '=', cmpToken_XorEqual, 0 };
+static OpMatch OP_Not[] = { '=', cmpToken_NotEqualCompare, 0 };
+static OpMatch OP_Hash[] = { '#', cmpToken_SymbolJoin, 0 };
+
+
+static cmpToken cmpLexer_ConsumeOperator(cmpLexerCursor* cur, enum cmpTokenType type, const OpMatch* op_matches)
+{
+	cmpU32 index = 0;
+	char c;
+
+	cmpToken token = cmpToken_Create(cur, type, 1);
+
+	// Consume initial character and inspect the next one
+	cmpLexerCursor_ConsumeChar(cur);
+	c = cmpLexerCursor_PeekChar(cur, 0);
+
+	// Run the next character against a series of matches to see if it's an operator token
+	while (op_matches[index].type != 0)
+	{
+		if (c == op_matches[index].c)
+		{
+			token.length = 2;
+			cmpLexerCursor_ConsumeChar(cur);
+			return token;
+		}
+		index++;
+	}
+
+	// No match found, it's just a single character token
+	return token;
+}
+
+
 cmpToken cmpLexer_ConsumeToken(cmpLexerCursor* cur)
 {
 	char c;
@@ -573,33 +645,49 @@ start:
 		case cmpToken_RBracket:
 		case cmpToken_LSqBracket:
 		case cmpToken_RSqBracket:
-		case cmpToken_LAngle:
-		case cmpToken_RAngle:
 		case cmpToken_Colon:
 		case cmpToken_SemiColon:
-		case cmpToken_Hash:
-		case cmpToken_Plus:
-		case cmpToken_Minus:
-		case cmpToken_Asterisk:
-		case cmpToken_Modulo:
 		case cmpToken_Period:
-		case cmpToken_Equals:
-		case cmpToken_And:
-		case cmpToken_Or:
-		case cmpToken_Xor:
-		case cmpToken_Tilde:
-		case cmpToken_Not:
 		case cmpToken_Question:
+		case cmpToken_Tilde:
 			token = cmpToken_Create(cur, (enum cmpTokenType)c, 1);
 			cmpLexerCursor_ConsumeChar(cur);
 			return token;
 
-		// Comments or divide
+		// Single/double character operators
+		case cmpToken_LAngle:
+			return cmpLexer_ConsumeOperator(cur, cmpToken_LAngle, OP_LAngle);
+		case cmpToken_RAngle:		// >= >>
+			return cmpLexer_ConsumeOperator(cur, cmpToken_RAngle, OP_RAngle);
+		case cmpToken_Plus:			// += ++
+			return cmpLexer_ConsumeOperator(cur, cmpToken_Plus, OP_Plus);
+		case cmpToken_Minus:		// -= -- ->
+			return cmpLexer_ConsumeOperator(cur, cmpToken_Minus, OP_Minus);
+		case cmpToken_Asterisk:		// *=
+			return cmpLexer_ConsumeOperator(cur, cmpToken_Asterisk, OP_Asterisk);
+		case cmpToken_Modulo:		// %=
+			return cmpLexer_ConsumeOperator(cur, cmpToken_Modulo, OP_Modulo);
+		case cmpToken_Equals:		// ==
+			return cmpLexer_ConsumeOperator(cur, cmpToken_Equals, OP_Equals);
+		case cmpToken_And:			// &= &&
+			return cmpLexer_ConsumeOperator(cur, cmpToken_And, OP_And);
+		case cmpToken_Or:			// |= ||
+			return cmpLexer_ConsumeOperator(cur, cmpToken_Or, OP_Or);
+		case cmpToken_Xor:			// ^=
+			return cmpLexer_ConsumeOperator(cur, cmpToken_Xor, OP_Xor);
+		case cmpToken_Not:			// !=
+			return cmpLexer_ConsumeOperator(cur, cmpToken_Not, OP_Not);
+		case cmpToken_Hash:
+			return cmpLexer_ConsumeOperator(cur, cmpToken_Hash, OP_Hash);
+
+
+		// Comments or divide	/=
 		case '/':
 			if (cmpLexerCursor_PeekChar(cur, 1) == '*')
 				return cmpLexer_ConsumeTokenPred(cur, cmpToken_Comment, 2, cmpLexer_IsCComment, &last_c);
 			if (cmpLexerCursor_PeekChar(cur, 1) == '/')
 				return cmpLexer_ConsumeTokenPred(cur, cmpToken_Comment, 2, cmpLexer_IsCppComment, NULL);
+			return cmpLexer_ConsumeOperator(cur, cmpToken_Divide, OP_Divide);
 
 			token = cmpToken_Create(cur, cmpToken_Divide, 1);
 			cmpLexerCursor_ConsumeChar(cur);
