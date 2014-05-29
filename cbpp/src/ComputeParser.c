@@ -474,6 +474,7 @@ cmpToken cmpLexer_ConsumeToken(cmpLexerCursor* cur)
 {
 	char c;
 	cmpError error;
+	cmpToken token;
 
 	// State for some of the lexer predicates
 	cmpBool had_period;
@@ -502,9 +503,10 @@ start:
 
 		// Mark EOL only for identifying the end of a pre-processor directive
 		case '\n':
+			token = cmpToken_Create(cur, cmpToken_EOL, 1); 
 			cmpLexerCursor_IncLine(cur);
 			cmpLexerCursor_ConsumeChar(cur);
-			return cmpToken_Create(cur, cmpToken_EOL, 1);
+			return token;
 
 		// Structural single character tokens
 		case cmpToken_LBrace:
@@ -531,8 +533,9 @@ start:
 		case cmpToken_Tilde:
 		case cmpToken_Not:
 		case cmpToken_Question:
+			token = cmpToken_Create(cur, (enum cmpTokenType)c, 1);
 			cmpLexerCursor_ConsumeChar(cur);
-			return cmpToken_Create(cur, (enum cmpTokenType)c, 1);
+			return token;
 
 		// Comments or divide
 		case '/':
@@ -540,8 +543,10 @@ start:
 				return cmpLexer_ConsumeTokenPred(cur, cmpToken_Comment, 2, cmpLexer_IsCComment, &last_c);
 			if (cmpLexerCursor_PeekChar(cur, 1) == '/')
 				return cmpLexer_ConsumeTokenPred(cur, cmpToken_Comment, 2, cmpLexer_IsCppComment, NULL);
+
+			token = cmpToken_Create(cur, cmpToken_Divide, 1);
 			cmpLexerCursor_ConsumeChar(cur);
-			return cmpToken_Create(cur, cmpToken_Divide, 1);
+			return token;
 
 		case '"':
 			return cmpLexer_ConsumeTokenPred(cur, cmpToken_String, 1, cmpLexer_IsString, NULL);
