@@ -434,7 +434,7 @@ static cmpBool cmpLexer_IsCComment(cmpLexerCursor* cur, cmpToken* token, char c,
 static cmpBool cmpLexer_IsCppComment(cmpLexerCursor* cur, cmpToken* token, char c, void* state)
 {
 	// Don't consume EOL, let outer-loop character match increment line number
-	return c != '\n';
+	return c != '\n' && c != '\r';
 }
 
 
