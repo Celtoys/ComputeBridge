@@ -227,6 +227,7 @@ typedef struct cmpNode
 
 	// Links to child nodes
 	struct cmpNode* first_child;
+	struct cmpNode* last_child;
 	struct cmpNode* next_sibling;
 
 	const cmpToken* start_token;

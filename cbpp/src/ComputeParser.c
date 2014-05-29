@@ -768,6 +768,7 @@ static cmpError cmpNode_Create(cmpNode** node, enum cmpNodeType type, cmpParserC
 	// Set defaults
 	(*node)->type = type;
 	(*node)->first_child = NULL;
+	(*node)->last_child = NULL;
 	(*node)->next_sibling = NULL;
 	(*node)->start_token = cmpParserCursor_PeekToken(cur, 0);
 	(*node)->nb_tokens = 1;
@@ -789,6 +790,24 @@ void cmpNode_Destroy(cmpNode* node)
 	}
 
 	free(node);
+}
+
+
+static void cmpNode_AddChild(cmpNode* node, cmpNode* child_node)
+{
+	assert(node != NULL);
+
+	// Add to the end of the list
+	if (node->last_child == NULL)
+	{
+		node->first_child = child_node;
+		node->last_child = child_node;
+	}
+	else
+	{
+		node->last_child->next_sibling = child_node;
+		node->last_child = child_node;
+	}
 }
 
 
@@ -831,7 +850,7 @@ static cmpNode* cmpParser_ConsumePPDirective(cmpParserCursor* cur)
 static cmpNode* cmpParser_ConsumeStatementBlock(cmpParserCursor* cur);
 
 
-static cmpBool cmpParser_ConsumeFunctionParams(cmpParserCursor* cur, cmpNode* node)
+static cmpBool cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 {
 	// Skip over all parameters
 	cmpU32 nb_brackets = 0;
@@ -858,6 +877,34 @@ static cmpBool cmpParser_ConsumeFunctionParams(cmpParserCursor* cur, cmpNode* no
 
 		cmpParserCursor_ConsumeToken(cur);
 		node->nb_tokens++;
+	}
+
+	// Parse the function body, if it exists
+	while (1)
+	{
+		cmpNode* child_node = cmpParser_ConsumeNode(cur);
+		if (child_node == NULL)
+		{
+			cmpNode_Destroy(node);
+			return CMP_FALSE;
+		}
+
+		// Add everything encountered as a child
+		cmpNode_AddChild(node, child_node);
+
+		// Terminate as a function declaration
+		if (child_node->type == cmpNode_Token && child_node->start_token->type == cmpToken_SemiColon)
+		{
+			node->type = cmpNode_FunctionDecl;
+			break;
+		}
+
+		// Terminate as a function definition
+		if (child_node->type == cmpNode_StatementBlock)
+		{
+			node->type = cmpNode_FunctionDefn;
+			break;
+		}
 	}
 
 	return CMP_TRUE;
@@ -904,8 +951,9 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 		const cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
 		if (token->type == cmpToken_LBracket)
 		{
-			if (!cmpParser_ConsumeFunctionParams(cur, node))
+			if (!cmpParser_ConsumeFunction(cur, node))
 				return NULL;
+			return node;
 		}
 	}
 
@@ -924,9 +972,6 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 		// If no statement block is encountered, change this to a declaration
 		if (token->type == cmpToken_SemiColon)
 		{
-			if (node->type == cmpNode_FunctionDefn)
-				node->type = cmpNode_FunctionDecl;
-
 			cmpParserCursor_ConsumeToken(cur);
 			break;
 		}
@@ -942,12 +987,12 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 			}
 
 			// Add as the only child of the function
-			node->first_child = child_node;
+			cmpNode_AddChild(node, child_node);
 			break;
 		}
 
 		cmpParserCursor_ConsumeToken(cur);
-		node->nb_tokens++;		
+		node->nb_tokens++;
 	}
 
 	// Hacky check to see if this is naming a struct
@@ -965,8 +1010,6 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 
 static cmpNode* cmpParser_ConsumeStatementBlock(cmpParserCursor* cur)
 {
-	cmpNode* last_child_node = NULL;
-
 	// Create the node
 	cmpNode* node;
 	cmpError error = cmpNode_Create(&node, cmpNode_StatementBlock, cur);
@@ -1002,12 +1045,8 @@ static cmpNode* cmpParser_ConsumeStatementBlock(cmpParserCursor* cur)
 			break;
 		}
 
-		// Link node children together in the parent
-		if (last_child_node == NULL)
-			node->first_child = child_node;
-		else
-			last_child_node->next_sibling = child_node;
-		last_child_node = child_node;
+		// Add to the parent
+		cmpNode_AddChild(node, child_node);
 	}
 
 	return node;
@@ -1051,6 +1090,10 @@ cmpNode* cmpParser_ConsumeNode(cmpParserCursor* cur)
 		// Statements
 		case cmpToken_Symbol:
 			return cmpParser_ConsumeStatement(cur);
+
+		// Statement blocks
+		case cmpToken_LBrace:
+			return cmpParser_ConsumeStatementBlock(cur);
 
 		// Termination of statement blocks
 		case cmpToken_RBrace:
