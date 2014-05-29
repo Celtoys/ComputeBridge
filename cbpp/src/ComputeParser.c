@@ -477,21 +477,16 @@ static cmpBool cmpLexer_IsString(cmpLexerCursor* cur, cmpToken* token, char c, v
 
 static cmpBool cmpLexer_IsNumber(cmpLexerCursor* cur, cmpToken* token, char c, void* state)
 {
-	cmpBool* had_period = (cmpBool*)state;
-	if (c == '.')
-	{
-		if (*had_period)
-			return CMP_FALSE;
-		return *had_period = CMP_TRUE;
-	}
-	return isdigit(c) ? CMP_TRUE : CMP_FALSE;
+	// Loosely matches hex and exponent numbers, allowing all letters as part of the number
+	// As this isn't valid input C, it simply passes the error onto whatever compiles the output
+	// It will also fuse together +/- operators as numbers
+	return (isalnum(c) || c == '.' || c == '+' || c == '-') ? CMP_TRUE : CMP_FALSE;
 }
-
 
 
 static cmpBool cmpLexer_IsSymbol(cmpLexerCursor* cur, cmpToken* token, char c, void* state)
 {
-	return (c == '_' || isalpha(c) || isdigit(c)) ? CMP_TRUE : CMP_FALSE;
+	return (c == '_' || isalnum(c)) ? CMP_TRUE : CMP_FALSE;
 }
 
 
@@ -606,12 +601,10 @@ cmpToken cmpLexer_ConsumeToken(cmpLexerCursor* cur)
 	cmpToken token;
 
 	// State for some of the lexer predicates
-	cmpBool had_period;
 	char last_c;
 
 start:
 
-	had_period = CMP_FALSE;
 	last_c = 0;
 
 	// Read the current character and return an empty token at stream end
@@ -706,7 +699,7 @@ start:
 		case '7':
 		case '8':
 		case '9':
-			return cmpLexer_ConsumeTokenPred(cur, cmpToken_Number, 1, cmpLexer_IsNumber, &had_period);
+			return cmpLexer_ConsumeTokenPred(cur, cmpToken_Number, 1, cmpLexer_IsNumber, NULL);
 
 		// Symbol tokens
 		case '_':
