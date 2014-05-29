@@ -872,6 +872,7 @@ static cmpBool cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 		if (token->type == cmpToken_RBracket && --nb_brackets == 0)
 		{
 			cmpParserCursor_ConsumeToken(cur);
+			node->nb_tokens++;
 			break;
 		}
 
