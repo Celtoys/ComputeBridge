@@ -1027,27 +1027,18 @@ static cmpNode* cmpParser_ConsumeStatementBlock(cmpParserCursor* cur)
 		cmpNode* child_node = cmpParser_ConsumeNode(cur);
 		if (child_node == NULL)
 		{
-			// Typically NULL means EOF or an error
-			const cmpToken* last_token = cmpParserCursor_PeekToken(cur, 0);
-			if (last_token == NULL || last_token->type != cmpToken_RBrace)
-			{
-				if (last_token == NULL)
-				{
-					cmpError error = cmpError_Create("Unexpected EOF when parsing statement block");
-					cmpParserCursor_SetError(cur, &error);
-				}
-				cmpNode_Destroy(child_node);
-				cmpNode_Destroy(node);
-				return NULL;
-			}
-
-			// Token } has been encountered so finish the statement block
-			cmpParserCursor_ConsumeToken(cur);
-			break;
+			error = cmpError_Create("Unexpected EOF when parsing statement block");
+			cmpParserCursor_SetError(cur, &error);
+			cmpNode_Destroy(node);
+			return NULL;
 		}
 
 		// Add to the parent
 		cmpNode_AddChild(node, child_node);
+
+		// Look for terminating right brace
+		if (child_node->type == cmpNode_Token && child_node->start_token->type == cmpToken_RBrace)
+			break;
 	}
 
 	return node;
@@ -1078,10 +1069,11 @@ cmpNode* cmpParser_ConsumeNode(cmpParserCursor* cur)
 
 	switch (token->type)
 	{
-		// Benign tokens that can be skipped when they're not part of another node
+		// Tokens that need to be present in the AST for accurate rewriting
 		case cmpToken_SemiColon:
 		case cmpToken_Comment:
 		case cmpToken_EOL:
+		case cmpToken_RBrace:
 			return cmpParser_ConsumeToken(cur);
 
 		// Pre-processor directives
@@ -1095,10 +1087,6 @@ cmpNode* cmpParser_ConsumeNode(cmpParserCursor* cur)
 		// Statement blocks
 		case cmpToken_LBrace:
 			return cmpParser_ConsumeStatementBlock(cur);
-
-		// Termination of statement blocks
-		case cmpToken_RBrace:
-			return NULL;
 
 		default:
 			error = cmpError_Create("Unexpected token '%s'", cmpTokenType_Name(token->type));
