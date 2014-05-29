@@ -800,6 +800,7 @@ const char* cmpNodeType_Name(enum cmpNodeType type)
 		case cmpNode_StatementBlock: return "cmpNode_StatementBlock";
 		case cmpNode_FunctionDefn: return "cmpNode_FunctionDefn";
 		case cmpNode_FunctionDecl: return "cmpNode_FunctionDecl";
+		case cmpNode_FunctionParams: return "cmpNode_FunctionParams";
 		case cmpNode_StructDefn: return "cmpNode_StructDefn";
 		case cmpNode_StructDecl: return "cmpNode_StructDecl";
 		case cmpNode_StructTag: return "cmpNode_StructTag";
@@ -915,8 +916,21 @@ static cmpNode* cmpParser_ConsumeStatementBlock(cmpParserCursor* cur);
 
 static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 {
+	cmpU32 nb_brackets;
+
+	// Create a node for the function parameters
+	cmpNode* params_node;
+	cmpError error = cmpNode_Create(&params_node, cmpNode_FunctionParams, cur);
+	if (!cmpError_OK(&error))
+	{
+		cmpParserCursor_SetError(cur, &error);
+		return NULL;
+	}
+	cmpParserCursor_ConsumeToken(cur);
+	cmpNode_AddChild(node, params_node);
+
 	// Skip over all parameters
-	cmpU32 nb_brackets = 0;
+	nb_brackets = 1;
 	while (1)
 	{
 		const cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
@@ -935,12 +949,12 @@ static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 		if (token->type == cmpToken_RBracket && --nb_brackets == 0)
 		{
 			cmpParserCursor_ConsumeToken(cur);
-			node->nb_tokens++;
+			params_node->nb_tokens++;
 			break;
 		}
 
 		cmpParserCursor_ConsumeToken(cur);
-		node->nb_tokens++;
+		params_node->nb_tokens++;
 	}
 
 	// Parse the function body, if it exists

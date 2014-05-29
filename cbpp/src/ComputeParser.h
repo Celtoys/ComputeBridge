@@ -215,6 +215,7 @@ enum cmpNodeType
 	cmpNode_StatementBlock,
 	cmpNode_FunctionDefn,
 	cmpNode_FunctionDecl,
+	cmpNode_FunctionParams,
 	cmpNode_StructDefn,
 	cmpNode_StructDecl,
 	cmpNode_StructTag,
