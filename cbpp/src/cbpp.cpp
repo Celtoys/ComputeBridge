@@ -203,20 +203,10 @@ public:
 private:
 	void EmitNode(FILE* fp, const cmpNode* node)
 	{
-		bool is_define = false;
 		for (cmpU32 i = 0; i < node->nb_tokens; i++)
 		{
 			const cmpToken& token = node->start_token[i];
-
-			// HACK! will clean this up later
-			if (node->type == cmpNode_PPDirective &&
-				!strncmp(token.start, "define", token.length))
-				is_define = true;
-			bool join_tokens = is_define && i == 2 && i < node->nb_tokens - 1 && node->start_token[i + 1].type == cmpToken_LBracket;
-			if (join_tokens)
-				fprintf(fp, "%.*s", token.length, token.start);
-			else 
-				fprintf(fp, "%.*s ", token.length, token.start);
+			fprintf(fp, "%.*s", token.length, token.start);
 		}
 
 		for (const cmpNode* child = node->first_child; child != 0; child = child->next_sibling)

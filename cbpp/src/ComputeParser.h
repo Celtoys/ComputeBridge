@@ -161,12 +161,15 @@ enum cmpTokenType
 	cmpToken_NotEqualCompare,
 	cmpToken_SymbolJoin,
 
-	// High-level tokens
+	// High-level semantic tokens
 	cmpToken_Comment,
 	cmpToken_String,
 	cmpToken_Number,
 	cmpToken_Symbol,
+
+	// Tokens used for rewriting that can safely be ignored
 	cmpToken_EOL,
+	cmpToken_Whitespace,
 
 	// Keyword tokens
 	cmpToken_Typedef,

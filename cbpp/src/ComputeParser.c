@@ -364,6 +364,7 @@ const char* cmpTokenType_Name(enum cmpTokenType type)
 		case cmpToken_Number: return "cmpToken_Number";
 		case cmpToken_Symbol: return "cmpToken_Symbol";
 		case cmpToken_EOL: return "cmpToken_EOL";
+		case cmpToken_Whitespace: return "cmpToken_Whitespace";
 		case cmpToken_Typedef: return "cmpToken_Typedef";
 		case cmpToken_Struct: return "cmpToken_Struct";
 	}
@@ -432,6 +433,12 @@ static cmpToken cmpLexer_ConsumeTokenPred(cmpLexerCursor* cur, enum cmpTokenType
 	}
 
 	return token;
+}
+
+
+static cmpBool cmpLexer_IsWhitespace(cmpLexerCursor* cur, cmpToken* token, char c, void* state)
+{
+	return c == ' ' || c == '\t' || c == '\v' || c == '\f' || c == '\r';
 }
 
 
@@ -601,11 +608,7 @@ cmpToken cmpLexer_ConsumeToken(cmpLexerCursor* cur)
 	cmpToken token;
 
 	// State for some of the lexer predicates
-	char last_c;
-
-start:
-
-	last_c = 0;
+	char last_c = 0;
 
 	// Read the current character and return an empty token at stream end
 	c = cmpLexerCursor_PeekChar(cur, 0);
@@ -614,14 +617,13 @@ start:
 
 	switch (c)
 	{
-		// Branch to the start only if it's a whitespace (the least-common case)
+		// Keep whitespace for rewriting
 		case ' ':
 		case '\t':
 		case '\v':
 		case '\f':
 		case '\r':
-			cmpLexerCursor_ConsumeChar(cur);
-			goto start;
+			return cmpLexer_ConsumeTokenPred(cur, cmpToken_Whitespace, 1, cmpLexer_IsWhitespace, NULL);
 
 		// Mark EOL only for identifying the end of a pre-processor directive
 		case '\n':
@@ -650,31 +652,30 @@ start:
 		// Single/double character operators
 		case cmpToken_LAngle:
 			return cmpLexer_ConsumeOperator(cur, cmpToken_LAngle, OP_LAngle);
-		case cmpToken_RAngle:		// >= >>
+		case cmpToken_RAngle:
 			return cmpLexer_ConsumeOperator(cur, cmpToken_RAngle, OP_RAngle);
-		case cmpToken_Plus:			// += ++
+		case cmpToken_Plus:
 			return cmpLexer_ConsumeOperator(cur, cmpToken_Plus, OP_Plus);
-		case cmpToken_Minus:		// -= -- ->
+		case cmpToken_Minus:
 			return cmpLexer_ConsumeOperator(cur, cmpToken_Minus, OP_Minus);
-		case cmpToken_Asterisk:		// *=
+		case cmpToken_Asterisk:
 			return cmpLexer_ConsumeOperator(cur, cmpToken_Asterisk, OP_Asterisk);
-		case cmpToken_Modulo:		// %=
+		case cmpToken_Modulo:
 			return cmpLexer_ConsumeOperator(cur, cmpToken_Modulo, OP_Modulo);
-		case cmpToken_Equals:		// ==
+		case cmpToken_Equals:
 			return cmpLexer_ConsumeOperator(cur, cmpToken_Equals, OP_Equals);
-		case cmpToken_And:			// &= &&
+		case cmpToken_And:
 			return cmpLexer_ConsumeOperator(cur, cmpToken_And, OP_And);
-		case cmpToken_Or:			// |= ||
+		case cmpToken_Or:
 			return cmpLexer_ConsumeOperator(cur, cmpToken_Or, OP_Or);
-		case cmpToken_Xor:			// ^=
+		case cmpToken_Xor:
 			return cmpLexer_ConsumeOperator(cur, cmpToken_Xor, OP_Xor);
-		case cmpToken_Not:			// !=
+		case cmpToken_Not:
 			return cmpLexer_ConsumeOperator(cur, cmpToken_Not, OP_Not);
 		case cmpToken_Hash:
 			return cmpLexer_ConsumeOperator(cur, cmpToken_Hash, OP_Hash);
 
-
-		// Comments or divide	/=
+		// Comments or divide
 		case '/':
 			if (cmpLexerCursor_PeekChar(cur, 1) == '*')
 				return cmpLexer_ConsumeTokenPred(cur, cmpToken_Comment, 2, cmpLexer_IsCComment, &last_c);
@@ -1368,24 +1369,19 @@ cmpNode* cmpParser_ConsumeNode(cmpParserCursor* cur)
 		case cmpToken_SemiColon:
 		case cmpToken_Comment:
 		case cmpToken_EOL:
+		case cmpToken_Whitespace:
 		case cmpToken_RBrace:
 			return cmpParser_ConsumeToken(cur);
 
-		// Pre-processor directives
+		// Tokens that create semantic nodes
 		case cmpToken_Hash:
 			return cmpParser_ConsumePPDirective(cur);
-
 		case cmpToken_Typedef:
 			return cmpParser_ConsumeTypedef(cur);
-
 		case cmpToken_Struct:
 			return cmpParser_ConsumeStruct(cur);
-
-		// Statements
 		case cmpToken_Symbol:
 			return cmpParser_ConsumeStatement(cur);
-
-		// Statement blocks
 		case cmpToken_LBrace:
 			return cmpParser_ConsumeStatementBlock(cur);
 
