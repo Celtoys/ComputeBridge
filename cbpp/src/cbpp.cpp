@@ -33,6 +33,12 @@ std::string g_OutputFilename;
 
 #define LOG if (g_Verbose) printf
 
+#ifndef _MSC_VER
+#include <cstring>
+#include <strings.h>
+#include <cstdio>
+#define strcmpi strcasecmp
+#endif
 
 const char* ParseArguments(int argc, const char* argv[])
 {
