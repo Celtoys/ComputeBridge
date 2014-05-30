@@ -18,6 +18,7 @@
 
 #include <string>
 #include <vector>
+#include <cassert>
 
 #include "ComputeParser.h"
 
@@ -107,6 +108,39 @@ void PrintUsage()
 }
 
 
+struct INodeVisitor
+{
+	virtual void Visit(cmpNode& node) = 0;
+};
+
+
+struct EmitFile : public INodeVisitor
+{
+	EmitFile(const char* filename)
+		: fp(0)
+	{
+		fp = fopen(filename, "wb");
+	}
+
+	~EmitFile()
+	{
+		if (fp != 0)
+			fclose(fp);
+	}
+
+	void Visit(cmpNode& node)
+	{
+		for (cmpU32 i = 0; i < node.nb_tokens; i++)
+		{
+			const cmpToken& token = node.start_token[i];
+			fprintf(fp, "%.*s", token.length, token.start);
+		}
+	}
+
+	FILE* fp;
+};
+
+
 class ComputeProcessor
 {
 public:
@@ -115,6 +149,21 @@ public:
 		, m_LexerCursor(0)
 		, m_ParserCursor(0)
 	{
+	}
+
+	~ComputeProcessor()
+	{
+		for (std::size_t i = 0; i < m_Nodes.size(); i++)
+			cmpNode_Destroy(m_Nodes[i]);
+
+		if (m_ParserCursor != 0)
+			cmpParserCursor_Destroy(m_ParserCursor);
+
+		if (m_LexerCursor != 0)
+			cmpLexerCursor_Destroy(m_LexerCursor);
+
+		if (m_MemoryFile != 0)
+			cmpMemoryFile_Destroy(m_MemoryFile);
 	}
 
 	bool Parse(const char* filename)
@@ -173,45 +222,22 @@ public:
 		return true;
 	}
 
-	bool EmitFile(const char* filename)
+	void VisitNodes(INodeVisitor* visitor)
 	{
-		FILE* fp = fopen(filename, "wb");
-		if (fp == NULL)
-			return false;
-
+		assert(visitor != 0);
 		for (size_t i = 0; i < m_Nodes.size(); i++)
-			EmitNode(fp, m_Nodes[i]);
-
-		fclose(fp);
-		return true;
-	}
-
-	~ComputeProcessor()
-	{
-		for (std::size_t i = 0; i < m_Nodes.size(); i++)
-			cmpNode_Destroy(m_Nodes[i]);
-
-		if (m_ParserCursor != 0)
-			cmpParserCursor_Destroy(m_ParserCursor);
-
-		if (m_LexerCursor != 0)
-			cmpLexerCursor_Destroy(m_LexerCursor);
-
-		if (m_MemoryFile != 0)
-			cmpMemoryFile_Destroy(m_MemoryFile);
+			VisitNode(m_Nodes[i], visitor);
 	}
 
 private:
-	void EmitNode(FILE* fp, const cmpNode* node)
+	void VisitNode(cmpNode* node, INodeVisitor* visitor)
 	{
-		for (cmpU32 i = 0; i < node->nb_tokens; i++)
-		{
-			const cmpToken& token = node->start_token[i];
-			fprintf(fp, "%.*s", token.length, token.start);
-		}
+		assert(visitor != 0);
+		assert(node != 0);
+		visitor->Visit(*node);
 
-		for (const cmpNode* child = node->first_child; child != 0; child = child->next_sibling)
-			EmitNode(fp, child);
+		for (cmpNode* child = node->first_child; child != 0; child = child->next_sibling)
+			VisitNode(child, visitor);
 	}
 
 	// Parser runtime
@@ -248,11 +274,13 @@ int main(int argc, const char* argv[])
 
 	if (!g_OutputFilename.empty())
 	{
-		if (!processor.EmitFile(g_OutputFilename.c_str()))
+		EmitFile emitter(g_OutputFilename.c_str());
+		if (emitter.fp == 0)
 		{
 			printf("Couldn't write to output file %s\n", g_OutputFilename.c_str());
 			return 1;
 		}
+		processor.VisitNodes(&emitter);
 	}
 
 	return 0;
