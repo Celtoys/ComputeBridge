@@ -213,6 +213,9 @@ typedef struct cmpToken
 
 	cmpU32 line;
 
+	// Some tokens record a hash of their contents for quick comparisons
+	cmpU32 hash;
+
 	// Returns true if the token is valid (i.e. not an end-of-stream token)
 	#ifdef __cplusplus
 		operator bool () const

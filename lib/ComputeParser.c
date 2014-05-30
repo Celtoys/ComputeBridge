@@ -405,6 +405,7 @@ static cmpToken cmpToken_CreateEmpty()
 	token.start = NULL;
 	token.length = 0;
 	token.line = 0;
+	token.hash = 0;
 	return token;
 }
 
@@ -416,6 +417,7 @@ cmpToken cmpToken_Create(cmpLexerCursor* cur, enum cmpTokenType type, cmpU32 len
 	token.start = cmpLexerCursor_PeekChars(cur, 0);
 	token.length = length;
 	token.line = cur->line;
+	token.hash = 0;
 	return token;
 }
 
@@ -522,10 +524,11 @@ static cmpU32 HASH_struct = 0;
 
 static void cmpLexer_IdentifyKeywordTokens(cmpToken* token)
 {	
-	cmpU32 token_hash;
-
 	assert(token != NULL);
 	assert(token->start != NULL);
+
+	// Store token hash of the symbol for callers to use
+	token->hash = cmpHash(token->start, token->length);
 
 	// Initialise keyword hashes first-time round
 	if (HASH_typedef == 0)
@@ -538,14 +541,12 @@ static void cmpLexer_IdentifyKeywordTokens(cmpToken* token)
 	switch (token->start[0])
 	{
 		case 't':
-			token_hash = cmpHash(token->start, token->length);
-			if (token_hash == HASH_typedef)
+			if (token->hash == HASH_typedef)
 				token->type = cmpToken_Typedef;
 			break;
 
 		case 's':
-			token_hash = cmpHash(token->start, token->length);
-			if (token_hash == HASH_struct)
+			if (token->hash == HASH_struct)
 				token->type = cmpToken_Struct;
 			break;
 	}
