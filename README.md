@@ -3,14 +3,15 @@ ComputeBridge
 
 #### The Library
 
-A "loose" Lexer/Parser can turn a shared subset of a few similar languages into a stream of tokens and parse tree nodes that can be used to transform source files independently for each target. This allows you to build a simple compute language that targets both OpenCL and CUDA at the same time.
+A "loose" Lexer/Parser can transform a shared subset of similar languages into a stream of tokens with an associated high-level Abstract Syntax Tree (AST). This can be used to rewrite source files independently for each target, allowing (in this case) a simple compute language that can rewrite to either CUDA or OpenCL.
 
-The loose nature of the parser allows it to be very simple and much faster than a complete parser, however it does mean you gain reduced insight into what the parse tree of a source file is. This is a recursive descent parser that currently recognises:
+The loose nature of the parser allows it to be simple and faster than a complete parser. It gives more control over modifications than a typical C pre-processor would, generating an AST that includes:
 
-* Preprocessor directives (you have the option of running a preprocessor before you feed your source file to the library.
+* Preprocessor directives (you have the option of running a preprocessor before you feed your source file to the library).
 * Statements and statement blocks.
 * Function declarations/definitions and their parameters.
 * Data structure declarations/definitions with their names and tags.
 * Type definitions/aliases.
+* Whitespace is preserved for accurate rewriting.
 
-Within these entities, the source file is further broken into tokens that can be used to accurately rewrite an input file.
+Within these AST nodes the source file is further broken into tokens that include numbers, symbols, operators and keywords.
