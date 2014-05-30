@@ -3,8 +3,6 @@
 
 #include <cassert>
 
-#include "../../lib/ComputeParser.h"
-
 
 ComputeProcessor::ComputeProcessor()
 	: m_MemoryFile(0)
@@ -106,3 +104,41 @@ void ComputeProcessor::VisitNodes(INodeVisitor* visitor)
 		VisitNode(m_Nodes[i], visitor);
 }
 
+
+TokenIterator::TokenIterator(cmpNode& node)
+	: first_token(node.start_token)
+	, last_token(first_token + node.nb_tokens)
+	, token(first_token)
+{
+}
+
+
+const cmpToken* TokenIterator::SkipWhitespace()
+{
+	// Skip all whitespace/EOL tokens
+	while (
+		token < last_token &&
+		token->type == cmpToken_Whitespace &&
+		token->type == cmpToken_EOL)
+		token++;
+
+	// Return NULL if skipped over all tokens
+	return token < last_token ? token : 0;
+}
+
+
+TokenIterator::operator bool () const
+{
+	return token < last_token;
+}
+
+
+TokenIterator& TokenIterator::operator ++ ()
+{
+	if (token < last_token)
+		token++;
+	else
+		token = 0;
+
+	return *this;
+}
