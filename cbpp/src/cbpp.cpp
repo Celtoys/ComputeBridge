@@ -115,8 +115,7 @@ public:
 	{
 		// Open the input file
 		LOG("Opening file '%s'\n", filename);
-		cmpError error = cmpMemoryFile_Create(&m_MemoryFile, filename);
-		if (!cmpError_OK(&error))
+		if (cmpError error = cmpMemoryFile_Create(&m_MemoryFile, filename))
 		{
 			printf("Error opening input file: %s\n\n", cmpError_Text(&error));
 			return false;
@@ -124,8 +123,7 @@ public:
 
 		// Build a list of tokens
 		LOG("Running lexer\n");
-		error = cmpLexerCursor_Create(&m_LexerCursor, cmpMemoryFile_Data(m_MemoryFile), cmpMemoryFile_Size(m_MemoryFile));
-		if (!cmpError_OK(&error))
+		if (cmpError error = cmpLexerCursor_Create(&m_LexerCursor, cmpMemoryFile_Data(m_MemoryFile), cmpMemoryFile_Size(m_MemoryFile)))
 		{
 			printf("Error creating lexer cursor: %s\n\n", cmpError_Text(&error));
 			return false;
@@ -137,8 +135,7 @@ public:
 		}
 
 		// Print any lexer errors
-		error = cmpLexerCursor_Error(m_LexerCursor);
-		if (!cmpError_OK(&error))
+		if (cmpError error = cmpLexerCursor_Error(m_LexerCursor))
 		{
 			printf("%s(%d): %s\n", filename, cmpLexerCursor_Line(m_LexerCursor), cmpError_Text(&error));
 			return false;
@@ -146,8 +143,7 @@ public:
 
 		// Build a list of parser nodes
 		LOG("Running parser\n");
-		error = cmpParserCursor_Create(&m_ParserCursor, m_Tokens.data(), m_Tokens.size());
-		if (!cmpError_OK(&error))
+		if (cmpError error = cmpParserCursor_Create(&m_ParserCursor, m_Tokens.data(), m_Tokens.size()))
 		{
 			printf("Error creating parser cursor: %s\n\n", cmpError_Text(&error));
 			return false;
@@ -162,8 +158,7 @@ public:
 		}
 
 		// Print any parser errors
-		error = cmpParserCursor_Error(m_ParserCursor);
-		if (!cmpError_OK(&error))
+		if (cmpError error = cmpParserCursor_Error(m_ParserCursor))
 		{
 			printf("%s(%d): %s\n",filename, cmpParserCursor_Line(m_ParserCursor), cmpError_Text(&error));
 			return false;

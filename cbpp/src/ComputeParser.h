@@ -51,13 +51,23 @@ typedef int cmpS32;
 // Simple error type, storing error text as a string.
 // Instances of this type should not be created but are returned by functions in this API.
 //
-typedef struct
-{
-	char text[512];
-} cmpError;
 
 // Does the error description represent a successful operation and not an error?
-cmpBool cmpError_OK(const cmpError* error);
+struct cmpError;
+cmpBool cmpError_OK(const struct cmpError* error);
+
+typedef struct cmpError
+{
+	char text[512];
+
+	// Returns true if the object is in an error state
+	#ifdef __cplusplus
+		operator bool () const
+		{
+			return !cmpError_OK(this);
+		}
+	#endif
+} cmpError;
 
 // Guaranteed to return a description of the error
 const char* cmpError_Text(const cmpError* error);
@@ -195,7 +205,7 @@ typedef struct
 
 	cmpU32 line;
 
-	// Little helper to make C++ code easier to read
+	// Returns true if the token is valid (i.e. not an end-of-stream token)
 	#ifdef __cplusplus
 		operator bool () const
 		{
