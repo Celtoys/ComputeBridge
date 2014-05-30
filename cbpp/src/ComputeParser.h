@@ -47,6 +47,14 @@ typedef int cmpS32;
 
 
 //
+// Calculate hash of a string with given length.
+// Pass zero length on a null-terminated string to get the function to calculate the length.
+//
+cmpU32 cmpHash(const char* str, cmpU32 length);
+
+
+
+//
 // --- cmpError ----------------------------------------------------------------------------------------
 // Simple error type, storing error text as a string.
 // Instances of this type should not be created but are returned by functions in this API.

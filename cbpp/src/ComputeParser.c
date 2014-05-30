@@ -26,6 +26,23 @@
 
 
 
+cmpU32 cmpHash(const char* str, cmpU32 length)
+{
+	cmpU32 c, hash = 0;
+
+	// If caller doesn't set the length, calculate it here
+	if (length == 0)
+		length = strlen(str);
+
+	// Permute hash until terminating NULL or length runs out
+	while ((c = *str++) && length--)
+		hash = c + (hash << 6) + (hash << 16) - hash;
+
+	return hash;
+}
+
+
+
 // =====================================================================================================
 // cmpError
 // =====================================================================================================
@@ -497,22 +514,6 @@ static cmpBool cmpLexer_IsSymbol(cmpLexerCursor* cur, cmpToken* token, char c, v
 }
 
 
-static cmpU32 sdbm_hash(const char* str, cmpU32 length)
-{
-	cmpU32 c, hash = 0;
-
-	// If caller doesn't set the length, calculate it here
-	if (length == 0)
-		length = strlen(str);
-
-	// Permute hash until terminating NULL or length runs out
-	while ((c = *str++) && length--)
-		hash = c + (hash << 6) + (hash << 16) - hash;
-
-	return hash;
-}
-
-
 // Lazy-initialised hashes for all keywords - assumes no collisions
 static cmpU32 HASH_typedef = 0;
 static cmpU32 HASH_struct = 0;
@@ -528,21 +529,21 @@ static void cmpLexer_IdentifyKeywordTokens(cmpToken* token)
 	// Initialise keyword hashes first-time round
 	if (HASH_typedef == 0)
 	{
-		HASH_typedef = sdbm_hash("typedef", 0);
-		HASH_struct = sdbm_hash("struct", 0);
+		HASH_typedef = cmpHash("typedef", 0);
+		HASH_struct = cmpHash("struct", 0);
 	}
 
 	// Switch on first character to reduce token hashing and sequential compares
 	switch (token->start[0])
 	{
 		case 't':
-			token_hash = sdbm_hash(token->start, token->length);
+			token_hash = cmpHash(token->start, token->length);
 			if (token_hash == HASH_typedef)
 				token->type = cmpToken_Typedef;
 			break;
 
 		case 's':
-			token_hash = sdbm_hash(token->start, token->length);
+			token_hash = cmpHash(token->start, token->length);
 			if (token_hash == HASH_struct)
 				token->type = cmpToken_Struct;
 			break;
