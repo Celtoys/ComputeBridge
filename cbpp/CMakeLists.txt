@@ -18,6 +18,7 @@ set(SRCS
     ../lib/ComputeParser.c
     ../lib/ComputeParser.h
     src/cbpp.cpp
+    src/ComputeProcessor.cpp
 )
 
 add_executable(cbpp ${SRCS})

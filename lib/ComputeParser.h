@@ -203,7 +203,7 @@ const char* cmpTokenType_Name(enum cmpTokenType type);
 // --- cmpToken ----------------------------------------------------------------------------------------
 // Token description returned by the lexer
 //
-typedef struct
+typedef struct cmpToken
 {
 	enum cmpTokenType type;
 
