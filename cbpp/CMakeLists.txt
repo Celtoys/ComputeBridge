@@ -15,8 +15,8 @@ set(CMAKE_LDFLAGS "${CMAKE_LDFLAGS}  ")
 set(CMAKE_LDFLAGS "${CMAKE_LDFLAGS} -L\".\" ")
 
 set(SRCS
-    src/ComputeParser.c
-    src/ComputeParser.h
+    ../lib/ComputeParser.c
+    ../lib/ComputeParser.h
     src/cbpp.cpp
 )
 

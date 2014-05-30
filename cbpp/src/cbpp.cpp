@@ -20,7 +20,7 @@
 #include <vector>
 #include <cassert>
 
-#include "ComputeParser.h"
+#include "../../lib/ComputeParser.h"
 
 
 // stdout configuration
