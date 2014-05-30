@@ -269,6 +269,9 @@ enum cmpNodeType
 
 	// Points directly to a single token that can be ignored semantically but used for rewriting
 	cmpNode_Token,
+
+	// A node that contains user modifications to the file
+	cmpNode_UserTokens,
 };
 
 const char* cmpNodeType_Name(enum cmpNodeType type);

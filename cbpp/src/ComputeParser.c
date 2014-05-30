@@ -891,6 +891,7 @@ const char* cmpNodeType_Name(enum cmpNodeType type)
 		case cmpNode_StructName: return "cmpNode_StructName";
 		case cmpNode_Typedef: return "cmpNode_Typedef";
 		case cmpNode_Token: return "cmpNode_Token";
+		case cmpNode_UserTokens: return "cmpNode_UserTokens";
 	}
 
 	return "<INTERNAL-ERROR> No node name found";
