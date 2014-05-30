@@ -376,6 +376,7 @@ const char* cmpTokenType_Name(enum cmpTokenType type)
 		case cmpToken_OrCompare: return "cmpToken_OrCompare";
 		case cmpToken_XorEqual: return "cmpToken_XorEqual";
 		case cmpToken_NotEqualCompare: return "cmpToken_NotEqualCompare";
+		case cmpToken_SymbolJoin: return "cmpToken_SymbolJoin";
 		case cmpToken_Comment: return "cmpToken_Comment";
 		case cmpToken_String: return "cmpToken_String";
 		case cmpToken_Number: return "cmpToken_Number";
