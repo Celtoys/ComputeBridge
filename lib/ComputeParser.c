@@ -1160,6 +1160,8 @@ static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 
 static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 {
+	cmpU32 nb_symbols = 0;
+
 	// Create the node
 	cmpNode* node;
 	cmpError error = cmpNode_Create(&node, cmpNode_Statement, cur);
@@ -1183,14 +1185,14 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 		}
 		if (token->type != cmpToken_Symbol && token->type != cmpToken_Whitespace)
 			break;
+		if (token->type == cmpToken_Symbol)
+			nb_symbols++;
 		cmpParserCursor_ConsumeToken(cur);
 		node->last_token = token;
 	}
 
-	// Token has not been consumed and is guaranteed to be non-null
-
 	// Check to see if this is a function definition/declaration and grab its parameters
-	if (node->first_token != node->last_token)
+	if (nb_symbols > 1)
 	{
 		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
 		if (token->type == cmpToken_LBracket)
