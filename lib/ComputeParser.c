@@ -1502,7 +1502,27 @@ void cmpParser_LogNodes(const cmpNode* node, cmpU32 depth)
 {
 	while (node != 0)
 	{
+		cmpToken* first_token = node->first_token;
+		cmpToken* last_token = node->last_token ? node->last_token->next : 0;
+		cmpToken* token;
+
 		printf("%.*s[%d] %s\n", depth, "                    ", node->type, cmpNodeType_Name(node->type));
+		printf("%.*s", depth + 1, "                    ");
+		for (token = first_token; token != last_token; token = token->next)
+		{
+			if (token->start[0] <= 32)
+			{
+				int i;
+				for (i = 0; i < token->length; i++)
+					printf("[%02x]", token->start[i]);
+			}
+			else
+			{
+				printf("%.*s", token->length, token->start);
+			}
+		}
+		printf("\n");
+
 		cmpParser_LogNodes(node->first_child, depth + 1);
 		node = node->next_sibling;
 	}
