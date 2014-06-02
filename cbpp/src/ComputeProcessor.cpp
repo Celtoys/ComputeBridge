@@ -10,6 +10,7 @@ ComputeProcessor::ComputeProcessor()
 	, m_ParserCursor(0)
 	, m_FirstToken(0)
 	, m_LastToken(0)
+	, m_RootNode(0)
 {
 }
 
@@ -25,8 +26,8 @@ ComputeProcessor::~ComputeProcessor()
 	}
 
 	// Destroy all nodes
-	for (std::size_t i = 0; i < m_Nodes.size(); i++)
-		cmpNode_Destroy(m_Nodes[i]);
+	if (m_RootNode != 0)
+		cmpNode_Destroy(m_RootNode);
 
 	// Destroy all parser objects
 	if (m_ParserCursor != 0)
@@ -67,6 +68,13 @@ bool ComputeProcessor::ParseFile(const char* filename, bool verbose)
 		return false;
 	}
 
+	cmpError error = cmpNode_CreateEmpty(&m_RootNode);
+	if (!cmpError_OK(&error))
+	{
+		printf("Error: %s\n", error.text);
+		return false;
+	}
+
 	// Build a list of parser nodes
 	if (cmpError error = cmpParserCursor_Create(&m_ParserCursor, m_FirstToken))
 	{
@@ -74,13 +82,10 @@ bool ComputeProcessor::ParseFile(const char* filename, bool verbose)
 		return false;
 	}
 	while (cmpNode* node = cmpParser_ConsumeNode(m_ParserCursor))
-		m_Nodes.push_back(node);
+		cmpNode_AddChild(m_RootNode, node);
 
 	if (verbose)
-	{
-		for (size_t i = 0; i < m_Nodes.size(); i++)
-			cmpParser_LogNodes(m_Nodes[i], 0);
-	}
+		cmpParser_LogNodes(m_RootNode, 0);
 
 	// Print any parser errors
 	if (cmpError error = cmpParserCursor_Error(m_ParserCursor))
@@ -110,14 +115,13 @@ namespace
 void ComputeProcessor::VisitNodes(INodeVisitor* visitor)
 {
 	assert(visitor != 0);
-	for (size_t i = 0; i < m_Nodes.size(); i++)
-		VisitNode(m_Nodes[i], visitor);
+	VisitNode(m_RootNode, visitor);
 }
 
 
 TokenIterator::TokenIterator(cmpNode& node)
 	: first_token(node.first_token)
-	, last_token(node.last_token->next)
+	, last_token(node.last_token ? node.last_token->next : 0)
 	, token(first_token)
 {
 }

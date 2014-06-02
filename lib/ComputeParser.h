@@ -296,8 +296,13 @@ typedef struct cmpNode
 	cmpToken* last_token;
 } cmpNode;
 
+cmpError cmpNode_CreateEmpty(cmpNode** node);
+
+cmpError cmpNode_Create(cmpNode** node, enum cmpNodeType type, cmpParserCursor* cur);
 
 void cmpNode_Destroy(cmpNode* node);
+
+void cmpNode_AddChild(cmpNode* node, cmpNode* child_node);
 
 cmpNode* cmpParser_ConsumeNode(cmpParserCursor* cur);
 

@@ -34,8 +34,8 @@ private:
 	cmpToken* m_FirstToken;
 	cmpToken* m_LastToken;
 
-	// Generated tokens and AST
-	std::vector<cmpNode*> m_Nodes;
+	// Abstract syntax tree
+	cmpNode* m_RootNode;
 };
 
 

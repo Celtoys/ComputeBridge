@@ -975,7 +975,7 @@ const char* cmpNodeType_Name(enum cmpNodeType type)
 
 
 
-static cmpError cmpNode_Create(cmpNode** node, enum cmpNodeType type, cmpParserCursor* cur)
+cmpError cmpNode_CreateEmpty(cmpNode** node)
 {
 	assert(node != NULL);
 
@@ -985,13 +985,27 @@ static cmpError cmpNode_Create(cmpNode** node, enum cmpNodeType type, cmpParserC
 		return cmpError_Create("malloc(cmpNode) failed");
 
 	// Set defaults
-	(*node)->type = type;
+	(*node)->type = cmpNode_None;
 	(*node)->first_child = NULL;
 	(*node)->last_child = NULL;
 	(*node)->next_sibling = NULL;
+	(*node)->first_token = NULL;
+	(*node)->last_token = NULL;
+
+	return cmpError_CreateOK();
+}
+
+
+cmpError cmpNode_Create(cmpNode** node, enum cmpNodeType type, cmpParserCursor* cur)
+{
+	cmpError error = cmpNode_CreateEmpty(node);
+	if (!cmpError_OK(&error))
+		return error;
+
+	// Override defaults
+	(*node)->type = type;
 	(*node)->first_token = cmpParserCursor_PeekToken(cur, 0);
 	(*node)->last_token = (*node)->first_token;
-
 	return cmpError_CreateOK();
 }
 
@@ -1012,7 +1026,7 @@ void cmpNode_Destroy(cmpNode* node)
 }
 
 
-static void cmpNode_AddChild(cmpNode* node, cmpNode* child_node)
+void cmpNode_AddChild(cmpNode* node, cmpNode* child_node)
 {
 	assert(node != NULL);
 
