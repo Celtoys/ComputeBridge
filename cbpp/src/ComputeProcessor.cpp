@@ -8,12 +8,22 @@ ComputeProcessor::ComputeProcessor()
 	: m_MemoryFile(0)
 	, m_LexerCursor(0)
 	, m_ParserCursor(0)
+	, m_FirstToken(0)
+	, m_LastToken(0)
 {
 }
 
 
 ComputeProcessor::~ComputeProcessor()
 {
+	// Destroy all tokens
+	while (m_FirstToken != 0)
+	{
+		cmpToken* next = m_FirstToken->next;
+		cmpToken_Destroy(m_FirstToken);
+		m_FirstToken = next;
+	}
+
 	// Destroy all nodes
 	for (std::size_t i = 0; i < m_Nodes.size(); i++)
 		cmpNode_Destroy(m_Nodes[i]);
@@ -45,10 +55,9 @@ bool ComputeProcessor::ParseFile(const char* filename, bool verbose)
 	}
 	while (cmpToken* token = cmpLexer_ConsumeToken(m_LexerCursor))
 	{
-		m_Tokens.push_back(*token);
+		cmpToken_AddToList(&m_FirstToken, &m_LastToken, token);
 		if (verbose)
 			printf("[0x%2x] %s %d\n", token->type, cmpTokenType_Name(token->type), token->length);
-		cmpToken_Destroy(token);
 	}
 
 	// Print any lexer errors
@@ -59,7 +68,7 @@ bool ComputeProcessor::ParseFile(const char* filename, bool verbose)
 	}
 
 	// Build a list of parser nodes
-	if (cmpError error = cmpParserCursor_Create(&m_ParserCursor, m_Tokens.data(), m_Tokens.size()))
+	if (cmpError error = cmpParserCursor_Create(&m_ParserCursor, m_FirstToken))
 	{
 		printf("Error creating parser cursor: %s\n\n", cmpError_Text(&error));
 		return false;
@@ -107,8 +116,8 @@ void ComputeProcessor::VisitNodes(INodeVisitor* visitor)
 
 
 TokenIterator::TokenIterator(cmpNode& node)
-	: first_token(node.start_token)
-	, last_token(first_token + node.nb_tokens)
+	: first_token(node.first_token)
+	, last_token(node.last_token->next)
 	, token(first_token)
 {
 }
@@ -118,26 +127,26 @@ const cmpToken* TokenIterator::SkipWhitespace()
 {
 	// Skip all whitespace/EOL tokens
 	while (
-		token < last_token &&
+		token != last_token &&
 		token->type == cmpToken_Whitespace &&
 		token->type == cmpToken_EOL)
-		token++;
+		token = token->next;
 
 	// Return NULL if skipped over all tokens
-	return token < last_token ? token : 0;
+	return token == last_token ? token : 0;
 }
 
 
 TokenIterator::operator bool () const
 {
-	return token < last_token;
+	return token != last_token;
 }
 
 
 TokenIterator& TokenIterator::operator ++ ()
 {
-	if (token < last_token)
-		token++;
+	if (token != last_token)
+		token = token->next;
 	else
 		token = 0;
 

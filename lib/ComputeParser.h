@@ -215,9 +215,15 @@ typedef struct cmpToken
 
 	// Some tokens record a hash of their contents for quick comparisons
 	cmpU32 hash;
+
+	// All tokens must be linked in order for the parser to process them
+	struct cmpToken* prev;
+	struct cmpToken* next;
 } cmpToken;
 
 void cmpToken_Destroy(cmpToken* token);
+
+void cmpToken_AddToList(cmpToken** first_token, cmpToken** last_token, cmpToken* token);
 
 
 
@@ -236,7 +242,7 @@ cmpToken* cmpLexer_ConsumeToken(cmpLexerCursor* cur);
 //
 typedef struct cmpParserCursor cmpParserCursor;
 
-cmpError cmpParserCursor_Create(cmpParserCursor** cursor, const cmpToken* tokens, cmpU32 nb_tokens);
+cmpError cmpParserCursor_Create(cmpParserCursor** cursor, cmpToken* first_token);
 
 void cmpParserCursor_Destroy(cmpParserCursor* cursor);
 
@@ -286,8 +292,8 @@ typedef struct cmpNode
 	struct cmpNode* last_child;
 	struct cmpNode* next_sibling;
 
-	const cmpToken* start_token;
-	cmpU32 nb_tokens;
+	cmpToken* first_token;
+	cmpToken* last_token;
 } cmpNode;
 
 

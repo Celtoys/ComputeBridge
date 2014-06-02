@@ -125,9 +125,9 @@ struct EmitFile : public INodeVisitor
 
 	void Visit(cmpNode& node)
 	{
-		for (cmpU32 i = 0; i < node.nb_tokens; i++)
+		for (TokenIterator i(node); i; ++i)
 		{
-			const cmpToken& token = node.start_token[i];
+			const cmpToken& token = *i.token;
 			fprintf(fp, "%.*s", token.length, token.start);
 		}
 	}

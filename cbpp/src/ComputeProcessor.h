@@ -30,8 +30,11 @@ private:
 	cmpLexerCursor* m_LexerCursor;
 	cmpParserCursor* m_ParserCursor;
 
+	// Linked list of tokens
+	cmpToken* m_FirstToken;
+	cmpToken* m_LastToken;
+
 	// Generated tokens and AST
-	std::vector<cmpToken> m_Tokens;
 	std::vector<cmpNode*> m_Nodes;
 };
 
@@ -56,7 +59,7 @@ struct TokenIterator
 		{
 			if (match(*token))
 				return token;
-			token++;
+			token = token->next;
 		}
 
 		return 0;

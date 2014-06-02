@@ -412,6 +412,8 @@ static cmpError cmpToken_Create(cmpToken**token, cmpLexerCursor* cur, enum cmpTo
 	(*token)->length = length;
 	(*token)->line = cur->line;
 	(*token)->hash = 0;
+	(*token)->prev = NULL;
+	(*token)->next = NULL;
 
 	return cmpError_CreateOK();
 }
@@ -421,6 +423,26 @@ void cmpToken_Destroy(cmpToken* token)
 {
 	assert(token != NULL);
 	free(token);
+}
+
+
+void cmpToken_AddToList(cmpToken** first_token, cmpToken** last_token, cmpToken* token)
+{
+	assert(first_token != NULL);
+	assert(last_token != NULL);
+	assert(token != NULL);
+
+	if (*first_token == NULL)
+	{
+		*first_token = token;
+		*last_token = token;
+	}
+	else
+	{
+		(*last_token)->next = token;
+		token->prev = *last_token;
+		*last_token = token;
+	}
 }
 
 
@@ -821,12 +843,11 @@ cmpToken* cmpLexer_ConsumeToken(cmpLexerCursor* cur)
 
 struct cmpParserCursor
 {
-	// Pointer to the token array
-	const cmpToken* tokens;
-	cmpU32 nb_tokens;
+	// Pointer to the token list
+	cmpToken* first_token;
 
 	// Current position in the token array
-	cmpU32 position;
+	cmpToken* cur_token;
 
 	// Current line number, as read from the latest token
 	cmpU32 line;
@@ -836,7 +857,7 @@ struct cmpParserCursor
 };
 
 
-cmpError cmpParserCursor_Create(cmpParserCursor** cursor, const cmpToken* tokens, cmpU32 nb_tokens)
+cmpError cmpParserCursor_Create(cmpParserCursor** cursor, cmpToken* first_token)
 {
 	assert(cursor != NULL);
 
@@ -846,9 +867,8 @@ cmpError cmpParserCursor_Create(cmpParserCursor** cursor, const cmpToken* tokens
 		return cmpError_Create("malloc(cmpParserCursor) failed");
 
 	// Set defaults
-	(*cursor)->tokens = tokens;
-	(*cursor)->nb_tokens = nb_tokens;
-	(*cursor)->position = 0;
+	(*cursor)->first_token = first_token;
+	(*cursor)->cur_token = first_token;
 	(*cursor)->line = 0;
 	(*cursor)->error = cmpError_CreateOK();
 
@@ -877,14 +897,22 @@ cmpError cmpParserCursor_Error(cmpParserCursor* cursor)
 }
 
 
-static const cmpToken* cmpParserCursor_PeekToken(cmpParserCursor* cursor, cmpU32 lookahead)
+static cmpToken* cmpParserCursor_PeekToken(cmpParserCursor* cursor, cmpU32 lookahead)
 {
+	cmpToken* token;
+
 	assert(cursor != NULL);
 
-	// Nothing to read at EOF
-	if (cursor->position + lookahead < cursor->nb_tokens)
+	// Seek to the lookahead token
+	token = cursor->cur_token;
+	while (lookahead && token != NULL)
 	{
-		const cmpToken* token = cursor->tokens + cursor->position + lookahead;
+		token = token->next;
+		lookahead--;
+	}
+
+	if (token != NULL)
+	{
 		cursor->line = token->line;
 		return token;
 	}
@@ -893,11 +921,11 @@ static const cmpToken* cmpParserCursor_PeekToken(cmpParserCursor* cursor, cmpU32
 }
 
 
-static const cmpToken* cmpParserCursor_ConsumeToken(cmpParserCursor* cursor)
+static cmpToken* cmpParserCursor_ConsumeToken(cmpParserCursor* cursor)
 {
-	const cmpToken* token = cmpParserCursor_PeekToken(cursor, 0);
-	if (cursor->position < cursor->nb_tokens)
-		cursor->position++;
+	cmpToken* token = cmpParserCursor_PeekToken(cursor, 0);
+	if (token != NULL)
+		cursor->cur_token = token->next;
 	return token;
 }
 
@@ -961,8 +989,8 @@ static cmpError cmpNode_Create(cmpNode** node, enum cmpNodeType type, cmpParserC
 	(*node)->first_child = NULL;
 	(*node)->last_child = NULL;
 	(*node)->next_sibling = NULL;
-	(*node)->start_token = cmpParserCursor_PeekToken(cur, 0);
-	(*node)->nb_tokens = 1;
+	(*node)->first_token = cmpParserCursor_PeekToken(cur, 0);
+	(*node)->last_token = (*node)->first_token;
 
 	return cmpError_CreateOK();
 }
@@ -1024,14 +1052,14 @@ static cmpNode* cmpParser_ConsumePPDirective(cmpParserCursor* cur)
 	// Loop looking for EOL to terminate the directive
 	while (1)
 	{
-		const cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
+		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
 		if (token == NULL)
 			break;
 		if (token->type == cmpToken_EOL)
 			break;
 
 		cmpParserCursor_ConsumeToken(cur);
-		node->nb_tokens++;
+		node->last_token = token;
 	}
 
 	return node;
@@ -1060,7 +1088,7 @@ static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 	nb_brackets = 1;
 	while (1)
 	{
-		const cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
+		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
 		if (token == NULL)
 		{
 			cmpError error = cmpError_Create("Unexpected EOF when parsing function parameters");
@@ -1076,12 +1104,12 @@ static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 		if (token->type == cmpToken_RBracket && --nb_brackets == 0)
 		{
 			cmpParserCursor_ConsumeToken(cur);
-			params_node->nb_tokens++;
+			params_node->last_token = token;
 			break;
 		}
 
 		cmpParserCursor_ConsumeToken(cur);
-		params_node->nb_tokens++;
+		params_node->last_token = token;
 	}
 
 	// Parse the function body, if it exists
@@ -1098,7 +1126,7 @@ static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 		cmpNode_AddChild(node, child_node);
 
 		// Terminate as a function declaration
-		if (child_node->type == cmpNode_Token && child_node->start_token->type == cmpToken_SemiColon)
+		if (child_node->type == cmpNode_Token && child_node->first_token->type == cmpToken_SemiColon)
 		{
 			node->type = cmpNode_FunctionDecl;
 			break;
@@ -1131,7 +1159,7 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 	// Skip over any leading symbols
 	while (1)
 	{
-		const cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
+		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
 		if (token == NULL)
 		{
 			error = cmpError_Create("Unexpected EOF when parsing statement");
@@ -1142,15 +1170,15 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 		if (token->type != cmpToken_Symbol)
 			break;
 		cmpParserCursor_ConsumeToken(cur);
-		node->nb_tokens++;
+		node->last_token = token;
 	}
 
 	// Token has not been consumed and is guaranteed to be non-null
 
 	// Check to see if this is a function definition/declaration and grab its parameters
-	if (node->nb_tokens > 1)
+	if (node->first_token != node->last_token)
 	{
-		const cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
+		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
 		if (token->type == cmpToken_LBracket)
 			return cmpParser_ConsumeFunction(cur, node);
 	}
@@ -1158,7 +1186,7 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 	// Now consume child statements if this is a definition
 	while (1)
 	{
-		const cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
+		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
 		if (token == NULL)
 		{
 			error = cmpError_Create("Unexpected EOF when parsing statement");
@@ -1187,7 +1215,7 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 		}
 
 		cmpParserCursor_ConsumeToken(cur);
-		node->nb_tokens++;
+		node->last_token = token;
 	}
 
 	return node;
@@ -1196,7 +1224,7 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 
 static cmpBool cmpParser_ConsumeTypedefStructName(cmpParserCursor* cur, cmpNode* node)
 {
-	const cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
+	cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
 	if (token != NULL && token->type == cmpToken_Symbol)
 	{
 		cmpNode* child_node;
@@ -1219,7 +1247,7 @@ static cmpBool cmpParser_ConsumeTypedefStructName(cmpParserCursor* cur, cmpNode*
 
 static cmpNode* cmpParser_ConsumeStruct(cmpParserCursor* cur)
 {
-	const cmpToken* next_token;
+	cmpToken* next_token;
 	cmpBool name_is_tag = CMP_FALSE;
 
 	// Create the node
@@ -1237,7 +1265,7 @@ static cmpNode* cmpParser_ConsumeStruct(cmpParserCursor* cur)
 	if (next_token != NULL && next_token->type == cmpToken_Struct)
 	{
 		cmpParserCursor_ConsumeToken(cur);
-		node->nb_tokens++;
+		node->last_token = next_token;
 		name_is_tag = CMP_TRUE;
 	}
 
@@ -1286,7 +1314,7 @@ static cmpNode* cmpParser_ConsumeStruct(cmpParserCursor* cur)
 		cmpNode_AddChild(node, child_node);
 
 		// Terminate as a structure declaration
-		if (child_node->type == cmpNode_Token && child_node->start_token->type == cmpToken_SemiColon)
+		if (child_node->type == cmpNode_Token && child_node->first_token->type == cmpToken_SemiColon)
 		{
 			node->type = cmpNode_StructDecl;
 			break;
@@ -1314,7 +1342,7 @@ static cmpNode* cmpParser_ConsumeTypedef(cmpParserCursor* cur)
 	cmpError error;
 
 	// Redirect as a struct if this is "typedef struct"
-	const cmpToken* next_token = cmpParserCursor_PeekToken(cur, 1);
+	cmpToken* next_token = cmpParserCursor_PeekToken(cur, 1);
 	if (next_token != NULL && next_token->type == cmpToken_Struct)
 		return cmpParser_ConsumeStruct(cur);
 
@@ -1330,7 +1358,7 @@ static cmpNode* cmpParser_ConsumeTypedef(cmpParserCursor* cur)
 	// Consume all tokens until the semi-colon
 	while (1)
 	{
-		const cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
+		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
 		if (token == NULL)
 		{
 			error = cmpError_Create("Unexpected EOF when parsing typedef");
@@ -1343,7 +1371,7 @@ static cmpNode* cmpParser_ConsumeTypedef(cmpParserCursor* cur)
 			break;
 
 		cmpParserCursor_ConsumeToken(cur);
-		node->nb_tokens++;
+		node->last_token = token;
 	}
 
 	return node;
@@ -1378,7 +1406,7 @@ static cmpNode* cmpParser_ConsumeStatementBlock(cmpParserCursor* cur)
 		cmpNode_AddChild(node, child_node);
 
 		// Look for terminating right brace
-		if (child_node->type == cmpNode_Token && child_node->start_token->type == cmpToken_RBrace)
+		if (child_node->type == cmpNode_Token && child_node->first_token->type == cmpToken_RBrace)
 			break;
 	}
 
@@ -1404,7 +1432,7 @@ static cmpNode* cmpParser_ConsumeToken(cmpParserCursor* cur)
 cmpNode* cmpParser_ConsumeNode(cmpParserCursor* cur)
 {
 	cmpError error;
-	const cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
+	cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
 	if (token == NULL)
 		return NULL;
 
@@ -1444,7 +1472,7 @@ void cmpParser_LogNodes(const cmpNode* node, cmpU32 depth)
 {
 	while (node != 0)
 	{
-		printf("%.*s[%d] %s %d\n", depth, "                    ", node->type, cmpNodeType_Name(node->type), node->nb_tokens);
+		printf("%.*s[%d] %s\n", depth, "                    ", node->type, cmpNodeType_Name(node->type));
 		cmpParser_LogNodes(node->first_child, depth + 1);
 		node = node->next_sibling;
 	}
