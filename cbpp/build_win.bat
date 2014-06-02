@@ -42,13 +42,21 @@ if not defined WINDOWS_SDK_DIR (
 )
 
 
+set CL_FLAGS=
+set LINK_FLAGS=
+if "%1"=="debug" (
+	set CL_FLAGS=/Zi
+	set LINK_FLAGS=/DEBUG
+)
+
+
 ::
 :: Unconditional compile/link of all files
 ::
 set SRC=%~dp0/src
 set DEP=%~dp0/../lib
 set OUT=%~dp0/bin
-cl.exe %SRC%/cbpp.cpp /EHsc /nologo /Fo%OUT%/cbpp.obj /c
-cl.exe %SRC%/ComputeProcessor.cpp /EHsc /nologo /Fo%OUT%/ComputeProcessor.obj /c
-cl.exe %DEP%/ComputeParser.c /EHsc /nologo /Fo%OUT%/ComputeParser.obj /c
-link.exe /LIBPATH:"%WINDOWS_SDK_DIR%lib" /OUT:%OUT%/cbpp.exe %OUT%/cbpp %OUT%/ComputeProcessor %OUT%/ComputeParser
+cl.exe %SRC%/cbpp.cpp /EHsc /nologo /Fo%OUT%/cbpp.obj /c %CL_FLAGS%
+cl.exe %SRC%/ComputeProcessor.cpp /EHsc /nologo /Fo%OUT%/ComputeProcessor.obj /c %CL_FLAGS%
+cl.exe %DEP%/ComputeParser.c /EHsc /nologo /Fo%OUT%/ComputeParser.obj /c %CL_FLAGS%
+link.exe %LINK_FLAGS% /LIBPATH:"%WINDOWS_SDK_DIR%lib" /OUT:%OUT%/cbpp.exe %OUT%/cbpp %OUT%/ComputeProcessor %OUT%/ComputeParser
