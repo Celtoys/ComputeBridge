@@ -670,8 +670,22 @@ static cmpToken* cmpLexer_ConsumeEOL(cmpLexerCursor* cur, enum cmpTokenType type
 	// After the token is created so that the token correctly points to the EOL character
 	// Before the character is consumed so that the line's character position is recorded correctly
 	cmpLexerCursor_IncLine(cur);
-
 	cmpLexerCursor_ConsumeChar(cur);
+
+	// To reduce the number of nodes in the AST, combine the EOL with any subsequent whitespace
+	while (1)
+	{
+		char c = cmpLexerCursor_PeekChar(cur, 0);
+		if (c == EOF)
+			break;
+
+		if (!cmpLexer_IsWhitespace(cur, token, c, NULL))
+			break;
+
+		cmpLexerCursor_ConsumeChar(cur);
+		token->length++;
+	}
+
 	return token;
 }
 
