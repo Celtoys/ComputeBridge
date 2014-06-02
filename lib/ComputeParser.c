@@ -398,27 +398,29 @@ const char* cmpTokenType_Name(enum cmpTokenType type)
 
 
 
-static cmpToken cmpToken_CreateEmpty()
+static cmpError cmpToken_Create(cmpToken**token, cmpLexerCursor* cur, enum cmpTokenType type, cmpU32 length)
 {
-	cmpToken token;
-	token.type = cmpToken_None;
-	token.start = NULL;
-	token.length = 0;
-	token.line = 0;
-	token.hash = 0;
-	return token;
+	assert(token != NULL);
+
+	// Allocate the container
+	*token = malloc(sizeof(cmpToken));
+	if (*token == NULL)
+		return cmpError_Create("malloc(cmpToken) failed");
+
+	(*token)->type = type;
+	(*token)->start = cmpLexerCursor_PeekChars(cur, 0);
+	(*token)->length = length;
+	(*token)->line = cur->line;
+	(*token)->hash = 0;
+
+	return cmpError_CreateOK();
 }
 
 
-cmpToken cmpToken_Create(cmpLexerCursor* cur, enum cmpTokenType type, cmpU32 length)
+void cmpToken_Destroy(cmpToken* token)
 {
-	cmpToken token;
-	token.type = type;
-	token.start = cmpLexerCursor_PeekChars(cur, 0);
-	token.length = length;
-	token.line = cur->line;
-	token.hash = 0;
-	return token;
+	assert(token != NULL);
+	free(token);
 }
 
 
@@ -432,10 +434,16 @@ cmpToken cmpToken_Create(cmpLexerCursor* cur, enum cmpTokenType type, cmpU32 len
 typedef cmpBool (*cmpLexer_Predicate)(cmpLexerCursor* cur, cmpToken* token, char c, void* state);
 
 
-static cmpToken cmpLexer_ConsumeTokenPred(cmpLexerCursor* cur, enum cmpTokenType type, cmpU32 initial_length, cmpLexer_Predicate p, void* state)
+static cmpToken* cmpLexer_ConsumeTokenPred(cmpLexerCursor* cur, enum cmpTokenType type, cmpU32 initial_length, cmpLexer_Predicate p, void* state)
 {
 	// Start the token off
-	cmpToken token = cmpToken_Create(cur, type, initial_length);
+	cmpToken* token;
+	cmpError error = cmpToken_Create(&token, cur, type, initial_length);
+	if (!cmpError_OK(&error))
+	{
+		cmpLexerCursor_SetError(cur, &error);
+		return NULL;
+	}
 	cmpLexerCursor_ConsumeChars(cur, initial_length);
 
 	// Scan all characters until EOF or the predicate says so
@@ -445,11 +453,11 @@ static cmpToken cmpLexer_ConsumeTokenPred(cmpLexerCursor* cur, enum cmpTokenType
 		if (c == EOF)
 			break;
 
-		if (!p(cur, &token, c, state))
+		if (!p(cur, token, c, state))
 			break;
 
 		cmpLexerCursor_ConsumeChar(cur);
-		token.length++;
+		token->length++;
 	}
 
 	return token;
@@ -576,12 +584,19 @@ static OpMatch OP_Not[] = { '=', cmpToken_NotEqualCompare, 0 };
 static OpMatch OP_Hash[] = { '#', cmpToken_SymbolJoin, 0 };
 
 
-static cmpToken cmpLexer_ConsumeOperator(cmpLexerCursor* cur, enum cmpTokenType type, const OpMatch* op_matches)
+static cmpToken* cmpLexer_ConsumeOperator(cmpLexerCursor* cur, enum cmpTokenType type, const OpMatch* op_matches)
 {
 	cmpU32 index = 0;
 	char c;
 
-	cmpToken token = cmpToken_Create(cur, type, 1);
+	// Start the token off
+	cmpToken* token;
+	cmpError error = cmpToken_Create(&token, cur, type, 1);
+	if (!cmpError_OK(&error))
+	{
+		cmpLexerCursor_SetError(cur, &error);
+		return NULL;
+	}
 
 	// Consume initial character and inspect the next one
 	cmpLexerCursor_ConsumeChar(cur);
@@ -592,7 +607,7 @@ static cmpToken cmpLexer_ConsumeOperator(cmpLexerCursor* cur, enum cmpTokenType 
 	{
 		if (c == op_matches[index].c)
 		{
-			token.length = 2;
+			token->length = 2;
 			cmpLexerCursor_ConsumeChar(cur);
 			return token;
 		}
@@ -604,11 +619,46 @@ static cmpToken cmpLexer_ConsumeOperator(cmpLexerCursor* cur, enum cmpTokenType 
 }
 
 
-cmpToken cmpLexer_ConsumeToken(cmpLexerCursor* cur)
+static cmpToken* cmpLexer_ConsumeCharacter(cmpLexerCursor* cur, enum cmpTokenType type)
+{
+	// Create a single character token
+	cmpToken* token;
+	cmpError error = cmpToken_Create(&token, cur, type, 1);
+	if (!cmpError_OK(&error))
+	{
+		cmpLexerCursor_SetError(cur, &error);
+		return NULL;
+	}
+	cmpLexerCursor_ConsumeChar(cur);
+	return token;
+}
+
+
+static cmpToken* cmpLexer_ConsumeEOL(cmpLexerCursor* cur, enum cmpTokenType type)
+{
+	// Create a single character token
+	cmpToken* token;
+	cmpError error = cmpToken_Create(&token, cur, type, 1);
+	if (!cmpError_OK(&error))
+	{
+		cmpLexerCursor_SetError(cur, &error);
+		return NULL;
+	}
+
+	// After the token is created so that the token correctly points to the EOL character
+	// Before the character is consumed so that the line's character position is recorded correctly
+	cmpLexerCursor_IncLine(cur);
+
+	cmpLexerCursor_ConsumeChar(cur);
+	return token;
+}
+
+
+cmpToken* cmpLexer_ConsumeToken(cmpLexerCursor* cur)
 {
 	char c;
 	cmpError error;
-	cmpToken token;
+	cmpToken* token;
 
 	// State for some of the lexer predicates
 	char last_c = 0;
@@ -616,7 +666,7 @@ cmpToken cmpLexer_ConsumeToken(cmpLexerCursor* cur)
 	// Read the current character and return an empty token at stream end
 	c = cmpLexerCursor_PeekChar(cur, 0);
 	if (c == EOF)
-		return cmpToken_CreateEmpty();
+		return NULL;
 
 	switch (c)
 	{
@@ -630,10 +680,7 @@ cmpToken cmpLexer_ConsumeToken(cmpLexerCursor* cur)
 
 		// Mark EOL only for identifying the end of a pre-processor directive
 		case '\n':
-			token = cmpToken_Create(cur, cmpToken_EOL, 1); 
-			cmpLexerCursor_IncLine(cur);
-			cmpLexerCursor_ConsumeChar(cur);
-			return token;
+			return cmpLexer_ConsumeEOL(cur, cmpToken_EOL);
 
 		// Structural single character tokens
 		case cmpToken_LBrace:
@@ -648,9 +695,7 @@ cmpToken cmpLexer_ConsumeToken(cmpLexerCursor* cur)
 		case cmpToken_Period:
 		case cmpToken_Question:
 		case cmpToken_Tilde:
-			token = cmpToken_Create(cur, (enum cmpTokenType)c, 1);
-			cmpLexerCursor_ConsumeChar(cur);
-			return token;
+			return cmpLexer_ConsumeCharacter(cur, (enum cmpTokenType)c);
 
 		// Single/double character operators
 		case cmpToken_LAngle:
@@ -685,10 +730,6 @@ cmpToken cmpLexer_ConsumeToken(cmpLexerCursor* cur)
 			if (cmpLexerCursor_PeekChar(cur, 1) == '/')
 				return cmpLexer_ConsumeTokenPred(cur, cmpToken_Comment, 2, cmpLexer_IsCppComment, NULL);
 			return cmpLexer_ConsumeOperator(cur, cmpToken_Divide, OP_Divide);
-
-			token = cmpToken_Create(cur, cmpToken_Divide, 1);
-			cmpLexerCursor_ConsumeChar(cur);
-			return token;
 
 		case '"':
 			return cmpLexer_ConsumeTokenPred(cur, cmpToken_String, 1, cmpLexer_IsString, NULL);
@@ -760,13 +801,13 @@ cmpToken cmpLexer_ConsumeToken(cmpLexerCursor* cur)
 		case 'Y':
 		case 'Z':
 			token = cmpLexer_ConsumeTokenPred(cur, cmpToken_Symbol, 1, cmpLexer_IsSymbol, NULL);
-			cmpLexer_IdentifyKeywordTokens(&token);
+			cmpLexer_IdentifyKeywordTokens(token);
 			return token;
 
 		default:
 			error = cmpError_Create("Unexpected character '%x'(%c)", c, c);
 			cmpLexerCursor_SetError(cur, &error);
-			return cmpToken_CreateEmpty();
+			return NULL;
 	}
 }
 

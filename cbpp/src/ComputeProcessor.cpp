@@ -43,11 +43,12 @@ bool ComputeProcessor::ParseFile(const char* filename, bool verbose)
 		printf("Error creating lexer cursor: %s\n\n", cmpError_Text(&error));
 		return false;
 	}
-	while (cmpToken token = cmpLexer_ConsumeToken(m_LexerCursor))
+	while (cmpToken* token = cmpLexer_ConsumeToken(m_LexerCursor))
 	{
-		m_Tokens.push_back(token);
+		m_Tokens.push_back(*token);
 		if (verbose)
-			printf("[0x%2x] %s %d\n", token.type, cmpTokenType_Name(token.type), token.length);
+			printf("[0x%2x] %s %d\n", token->type, cmpTokenType_Name(token->type), token->length);
+		cmpToken_Destroy(token);
 	}
 
 	// Print any lexer errors

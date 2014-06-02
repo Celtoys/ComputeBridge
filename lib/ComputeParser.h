@@ -215,25 +215,19 @@ typedef struct cmpToken
 
 	// Some tokens record a hash of their contents for quick comparisons
 	cmpU32 hash;
-
-	// Returns true if the token is valid (i.e. not an end-of-stream token)
-	#ifdef __cplusplus
-		operator bool () const
-		{
-			return type != cmpToken_None;
-		}
-	#endif
 } cmpToken;
+
+void cmpToken_Destroy(cmpToken* token);
 
 
 
 //
 // --- cmpLexer ----------------------------------------------------------------------------------------
-// Very loose Lexer for C-style languages
+// Very loose Lexer for C-style languages.
 // Single function for returning the current token at the cursor and advancing to the next one.
-// The last token read will always be of type cmpToken_None.
+// Returns NULL when there are no more tokens left to read.
 //
-cmpToken cmpLexer_ConsumeToken(cmpLexerCursor* cur);
+cmpToken* cmpLexer_ConsumeToken(cmpLexerCursor* cur);
 
 
 

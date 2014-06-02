@@ -44,6 +44,11 @@ struct TokenIterator
 {
 	TokenIterator(cmpNode& node);
 
+	//
+	// Moves the iterator along to the first token that matches the predicate.
+	// This will return a pointer to the located token.
+	// If the token can't be found, the iterator will be moved to the end of the node and return NULL.
+	//
 	template <typename MATCH>
 	const cmpToken* SeekToken(const MATCH& match)
 	{
@@ -57,6 +62,11 @@ struct TokenIterator
 		return 0;
 	}
 
+	//
+	// Skips all whitespace, checking to see if the token that follows matches the predicate.
+	// Returns a pointer to the next token beyond the whitespace if it matches.
+	// If there is no match NULL is returned but the iterator stays over that next token.
+	//
 	template <typename MATCH>
 	const cmpToken* ExpectToken(const MATCH& match)
 	{
