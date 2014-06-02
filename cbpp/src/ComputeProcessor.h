@@ -53,7 +53,7 @@ struct TokenIterator
 	// If the token can't be found, the iterator will be moved to the end of the node and return NULL.
 	//
 	template <typename MATCH>
-	const cmpToken* SeekToken(const MATCH& match)
+	cmpToken* SeekToken(const MATCH& match)
 	{
 		while (token < last_token)
 		{
@@ -71,25 +71,25 @@ struct TokenIterator
 	// If there is no match NULL is returned but the iterator stays over that next token.
 	//
 	template <typename MATCH>
-	const cmpToken* ExpectToken(const MATCH& match)
+	cmpToken* ExpectToken(const MATCH& match)
 	{
 		SkipWhitespace();
 
-		if (token < last_token && match(*token))
+		if (token != last_token && match(*token))
 			return token;
 
 		return 0;
 	}
 
-	const cmpToken* SkipWhitespace();
+	cmpToken* SkipWhitespace();
 
 	operator bool () const;
 
 	TokenIterator& operator ++ ();
 
-	const cmpToken* first_token;
-	const cmpToken* last_token;
-	const cmpToken* token;
+	cmpToken* first_token;
+	cmpToken* last_token;
+	cmpToken* token;
 };
 
 

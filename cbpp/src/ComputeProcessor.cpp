@@ -127,13 +127,13 @@ TokenIterator::TokenIterator(cmpNode& node)
 }
 
 
-const cmpToken* TokenIterator::SkipWhitespace()
+cmpToken* TokenIterator::SkipWhitespace()
 {
 	// Skip all whitespace/EOL tokens
 	while (
 		token != last_token &&
-		token->type == cmpToken_Whitespace &&
-		token->type == cmpToken_EOL)
+		(token->type == cmpToken_Whitespace ||
+		 token->type == cmpToken_EOL))
 		token = token->next;
 
 	// Return NULL if skipped over all tokens
