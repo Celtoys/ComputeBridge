@@ -472,9 +472,6 @@ static cmpToken* cmpLexer_ConsumeTokenPred(cmpLexerCursor* cur, enum cmpTokenTyp
 	while (1)
 	{
 		char c = cmpLexerCursor_PeekChar(cur, 0);
-		if (c == EOF)
-			break;
-
 		if (!p(cur, token, c, state))
 			break;
 
@@ -676,9 +673,6 @@ static cmpToken* cmpLexer_ConsumeEOL(cmpLexerCursor* cur, enum cmpTokenType type
 	while (1)
 	{
 		char c = cmpLexerCursor_PeekChar(cur, 0);
-		if (c == EOF)
-			break;
-
 		if (!cmpLexer_IsWhitespace(cur, token, c, NULL))
 			break;
 
