@@ -1181,7 +1181,7 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 			cmpNode_Destroy(node);
 			return NULL;
 		}
-		if (token->type != cmpToken_Symbol)
+		if (token->type != cmpToken_Symbol && token->type != cmpToken_Whitespace)
 			break;
 		cmpParserCursor_ConsumeToken(cur);
 		node->last_token = token;
