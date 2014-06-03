@@ -18,8 +18,6 @@
 #include "ComputeProcessor.h"
 
 #include <string>
-#include <vector>
-#include <cassert>
 
 #include "../../lib/ComputeParser.h"
 
@@ -156,6 +154,8 @@ int main(int argc, const char* argv[])
 	ComputeProcessor processor;
 	if (!processor.ParseFile(g_InputFilename.c_str(), g_Verbose))
 		return 1;
+
+	processor.ApplyTransforms();
 
 	if (!g_OutputFilename.empty())
 	{
