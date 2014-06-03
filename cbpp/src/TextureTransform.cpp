@@ -77,6 +77,7 @@ struct TextureRef
 		, keyword_token(0)
 		, type_token(0)
 		, nb_type_tokens(0)
+		, end_of_type_token(0)
 		, name_token(0)
 	{
 	}
@@ -93,6 +94,9 @@ struct TextureRef
 	// Texel type keyword that may consist of two tokens, e.g. "unsigned int"
 	cmpToken* type_token;
 	cmpU32 nb_type_tokens;
+
+	// Points to a token one place beyond the last token that defines the type
+	cmpToken* end_of_type_token;
 
 	// Only set for function parameters
 	cmpToken* name_token;
@@ -208,6 +212,7 @@ public:
 			m_LastError = cmpError_Create("%s(%d): Expecting '>'", filename, iterator.token->line);
 			return false;
 		}
+		ref.end_of_type_token = iterator.token;
 		++iterator;
 
 		// Ensure that function parameters have a name
@@ -337,8 +342,9 @@ struct String
 class TextureType
 {
 public:
-	TextureType()
-		: m_FirstToken(0)
+	TextureType(cmpU32 texture_refs_key)
+		: m_TextureRefsKey(texture_refs_key)
+		, m_FirstToken(0)
 		, m_LastToken(0)
 		, m_LastError(cmpError_CreateOK())
 	{
@@ -452,13 +458,41 @@ public:
 		}
 		if (insert_before_node == NULL)
 		{
-			// ERROR
-			printf("ERROR\n");
+			m_LastError = cmpError_Create("Failed to find good location for type declaration");
 			return false;
 		}
 		cmpNode_AddBefore(insert_before_node, type_node);
 
 		return true;
+	}
+
+
+	bool ReplaceTypeInstance(const TextureRef& ref)
+	{
+		// Create the single replacement token
+		cmpToken* token;
+		m_LastError = cmpToken_Create(&token, cmpToken_Symbol, m_Name.text, m_Name.length, ref.line);
+		if (!cmpError_OK(&m_LastError))
+			return false;
+
+		// Cut out the original tokens and replace with the new one
+		cmpToken* first_token = ref.keyword_token;
+		cmpToken* last_token = ref.end_of_type_token;
+		token->prev = first_token->prev;
+		token->prev->next = token;
+		token->next = last_token->next;
+		token->next->prev = token;
+
+		// DELETE
+
+
+		return true;
+	}
+
+
+	cmpU32 TextureRefsKey() const
+	{
+		return m_TextureRefsKey;
 	}
 
 
@@ -490,6 +524,8 @@ private:
 	}
 
 
+	// Key used to lookup texture refs that use this type
+	cmpU32 m_TextureRefsKey;
 
 	// Name of the uniquely generated string type
 	String m_Name;
@@ -528,13 +564,26 @@ private:
 
 			// Generate a texture type from the first instance of this texture reference
 			const TextureRef& first_ref = FindFirstTextureRef(refs);
-			TextureType texture_type;
+			TextureType texture_type(i->first);
 
 			// Place a type declaration somewhere before the first node
 			if (!texture_type.AddTypeDeclaration(first_ref, m_UniqueTypeIndex++))
 				return texture_type.LastError();
 
 			m_TextureTypes.push_back(texture_type);
+		}
+
+		// Replace the type of all texture references with the newly generated unique ones
+		for (size_t i = 0; i < m_TextureTypes.size(); i++)
+		{
+			TextureType& texture_type = m_TextureTypes[i];
+			const TextureRefs& refs = refs_map.find(texture_type.TextureRefsKey())->second;
+
+			for (size_t j = 0; j < refs.size(); j++)
+			{
+				if (!texture_type.ReplaceTypeInstance(refs[j]))
+					return texture_type.LastError();
+			}
 		}
 
 		return cmpError_CreateOK();
