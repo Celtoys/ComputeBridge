@@ -111,8 +111,11 @@ struct EmitFile : public INodeVisitor
 {
 	EmitFile(const char* filename)
 		: fp(0)
+		, last_error(cmpError_CreateOK())
 	{
 		fp = fopen(filename, "wb");
+		if (fp == 0)
+			last_error = cmpError_Create("Couldn't open file '%s' for writing", filename);
 	}
 
 	~EmitFile()
@@ -121,16 +124,23 @@ struct EmitFile : public INodeVisitor
 			fclose(fp);
 	}
 
-	void Visit(cmpNode& node)
+	bool Visit(const ComputeProcessor&, cmpNode& node)
 	{
+		if (fp == 0)
+			return false;
+
 		for (TokenIterator i(node); i; ++i)
 		{
 			const cmpToken& token = *i.token;
 			fprintf(fp, "%.*s", token.length, token.start);
 		}
+
+		return true;
 	}
 
 	FILE* fp;
+
+	cmpError last_error;
 };
 
 
@@ -155,17 +165,18 @@ int main(int argc, const char* argv[])
 	if (!processor.ParseFile(g_InputFilename.c_str(), g_Verbose))
 		return 1;
 
-	processor.ApplyTransforms();
+	cmpError error = processor.ApplyTransforms();
+	if (!cmpError_OK(&error))
+		printf("%s\n", error.text);
 
 	if (!g_OutputFilename.empty())
 	{
 		EmitFile emitter(g_OutputFilename.c_str());
-		if (emitter.fp == 0)
+		if (!processor.VisitNodes(&emitter))
 		{
-			printf("Couldn't write to output file %s\n", g_OutputFilename.c_str());
+			printf("%s\n", emitter.last_error.text);
 			return 1;
 		}
-		processor.VisitNodes(&emitter);
 	}
 
 	return 0;

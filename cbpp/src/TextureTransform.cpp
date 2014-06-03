@@ -118,6 +118,7 @@ class FindTextureRefs : public INodeVisitor
 {
 public:
 	FindTextureRefs()
+		: m_LastError(cmpError_CreateOK())
 	{
 		m_TextureMatches = MatchHashes(
 			KEYWORD_Texture3Dn.hash,
@@ -138,18 +139,20 @@ public:
 	}
 
 
-	void Visit(cmpNode& node)
+	bool Visit(const ComputeProcessor& processor, cmpNode& node)
 	{
 		// Filter out the node types we're not interested in
 		if (node.type != cmpNode_Statement &&
 			node.type != cmpNode_FunctionParams &&
 			node.type != cmpNode_Typedef)
-			return;
+			return true;
 
 		// Search for any of the texture keywords
 		TokenIterator iterator(node);
 		if (iterator.SeekToken(m_TextureMatches) == 0)
-			return;
+			return true;
+
+		const char* filename = processor.Filename().c_str();
 
 		// Start the texture reference off with its node/token and token hash
 		TextureRef ref;
@@ -162,8 +165,8 @@ public:
 		// Ensure '<' follows
 		if (iterator.ExpectToken(MatchTypes(cmpToken_LAngle)) == 0)
 		{
-			// ERROR
-			return;
+			m_LastError = cmpError_Create("%s(%d): Expecting '<'", filename, iterator.token->line);
+			return false;
 		}
 		++iterator;
 
@@ -171,8 +174,8 @@ public:
 		cmpToken* type_token_0 = iterator.ExpectToken(m_TypeMatches);
 		if (type_token_0 == 0)
 		{
-			// ERROR
-			return;
+			m_LastError = cmpError_Create("%s(%d): Expecting a type name", filename, iterator.token->line);
+			return false;
 		}
 		ref.type_token = type_token_0;
 		ref.nb_type_tokens = 1;
@@ -185,13 +188,13 @@ public:
 			const cmpToken* type_token_1 = iterator.ExpectToken(m_TypeMatches);
 			if (type_token_1 == 0)
 			{
-				// ERROR
-				return;
+				m_LastError = cmpError_Create("%s(%d): Expecting a type name after unsigned/signed", filename, iterator.token->line);
+				return false;
 			}
 			if (type_token_1->hash == KEYWORD_signed.hash || type_token_1->hash == KEYWORD_unsigned.hash)
 			{
-				// ERROR
-				return;
+				m_LastError = cmpError_Create("%s(%d): Not expecting unsigned/signed twice", filename, iterator.token->line);
+				return false;
 			}
 
 			ref.nb_type_tokens = 2;
@@ -202,8 +205,8 @@ public:
 		// Ensure '>' closes the type naming
 		if (iterator.ExpectToken(MatchTypes(cmpToken_RAngle)) == 0)
 		{
-			// ERROR
-			return;
+			m_LastError = cmpError_Create("%s(%d): Expecting '>'", filename, iterator.token->line);
+			return false;
 		}
 		++iterator;
 
@@ -212,8 +215,8 @@ public:
 		{
 			if (iterator.ExpectToken(MatchTypes(cmpToken_Symbol)) == 0)
 			{
-				// ERROR
-				return;
+				m_LastError = cmpError_Create("%s(%d): Expecting function parameter to have a name", filename, iterator.token->line);
+				return false;
 			}
 			ref.name_token = iterator.token;
 			++iterator;
@@ -221,6 +224,7 @@ public:
 
 		// Record the texture reference
 		m_TextureRefsMap[combined_hash].push_back(ref);
+		return true;
 	}
 
 
@@ -230,11 +234,19 @@ public:
 	}
 
 
+	const cmpError& LastError() const
+	{
+		return m_LastError;
+	}
+
+
 private:
 	MatchHashes m_TextureMatches;
 	MatchHashes m_TypeMatches;
 
 	TextureRefsMap m_TextureRefsMap;
+
+	cmpError m_LastError;
 };
 
 
@@ -264,10 +276,10 @@ namespace
 
 
 //
-// Makes use of unique_ptr<char[]> to store persistent pointers to text that cmpToken objects can
-// reference. TextureType objects may be moved around in memory, ruling out embedded char arrays.
-// std::string may make small-string optimisations by embedding local char arrays so that's out
-// of the window, too.
+// Persistent pointers to text that cmpToken objects can reference. TextureType objects may be moved
+// around in memory, ruling out embedded char arrays. std::string may make small-string optimisations
+// by embedding local char arrays so that's out of the window, too.
+// Transfers ownership on copy.
 //
 struct String
 {
@@ -276,6 +288,7 @@ struct String
 		, length(0)
 	{
 	}
+
 
 	String(const std::string& source)
 		: text(0)
@@ -288,6 +301,7 @@ struct String
 		this->text[length] = 0;
 	}
 
+
 	String(const String& rhs)
 		: text(rhs.text)
 		, length(rhs.length)
@@ -296,11 +310,13 @@ struct String
 		rhs.text = 0;
 	}
 
+
 	~String()
 	{
 		if (text != 0)
 			delete [] text;
 	}
+
 
 	String& operator = (const String& rhs)
 	{
@@ -324,8 +340,10 @@ public:
 	TextureType()
 		: m_FirstToken(0)
 		, m_LastToken(0)
+		, m_LastError(cmpError_CreateOK())
 	{
 	}
+
 
 	~TextureType()
 	{
@@ -337,6 +355,7 @@ public:
 			m_FirstToken = next;
 		}
 	}
+
 
 	bool AddTypeDeclaration(const TextureRef& ref, int unique_index)
 	{
@@ -442,6 +461,13 @@ public:
 		return true;
 	}
 
+
+	cmpError LastError() const
+	{
+		return m_LastError;
+	}
+
+
 private:
 	cmpToken* AddToken(enum cmpTokenType type, const char* start, cmpU32 length, cmpU32 line)
 	{
@@ -453,6 +479,7 @@ private:
 		return token;
 	}
 
+
 	cmpToken* AddToken(const Keyword& keyword, cmpU32 line)
 	{
 		// Create a symbol token using globally persistent keyword text
@@ -461,6 +488,8 @@ private:
 			token->hash = keyword.hash;
 		return token;
 	}
+
+
 
 	// Name of the uniquely generated string type
 	String m_Name;
@@ -482,14 +511,15 @@ public:
 	}
 
 private:
-	void Apply(ComputeProcessor& processor)
+	cmpError Apply(ComputeProcessor& processor)
 	{
 		// Find all texture references
 		FindTextureRefs ftr;
-		processor.VisitNodes(&ftr);
+		if (!processor.VisitNodes(&ftr))
+			return ftr.LastError();
 		const TextureRefsMap& refs_map = ftr.Results();
 		if (refs_map.size() == 0)
-			return;
+			return cmpError_CreateOK();
 
 		// Build a list of all unique texture types introduced
 		for (TextureRefsMap::const_iterator i = refs_map.begin(); i != refs_map.end(); ++i)
@@ -502,13 +532,12 @@ private:
 
 			// Place a type declaration somewhere before the first node
 			if (!texture_type.AddTypeDeclaration(first_ref, m_UniqueTypeIndex++))
-			{
-				// ERROR
-				return;
-			}
+				return texture_type.LastError();
 
 			m_TextureTypes.push_back(texture_type);
 		}
+
+		return cmpError_CreateOK();
 	}
 
 	// Used to generate unique type names for texture references

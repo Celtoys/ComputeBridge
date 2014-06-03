@@ -54,6 +54,11 @@ ComputeProcessor::~ComputeProcessor()
 
 bool ComputeProcessor::ParseFile(const char* filename, bool verbose)
 {
+	// File already been parsed?
+	if (!m_Filename.empty())
+		return true;
+	m_Filename = filename;
+
 	// Open the input file
 	if (cmpError error = cmpMemoryFile_Create(&m_MemoryFile, filename))
 	{
@@ -113,26 +118,32 @@ bool ComputeProcessor::ParseFile(const char* filename, bool verbose)
 
 namespace
 {
-	void VisitNode(cmpNode* node, INodeVisitor* visitor)
+	bool VisitNode(const ComputeProcessor& processor, cmpNode* node, INodeVisitor* visitor)
 	{
 		assert(visitor != 0);
 		assert(node != 0);
-		visitor->Visit(*node);
+		if (!visitor->Visit(processor, *node))
+			return false;
 
 		for (cmpNode* child = node->first_child; child != 0; child = child->next_sibling)
-			VisitNode(child, visitor);
+		{
+			if (!VisitNode(processor, child, visitor))
+				return false;
+		}
+
+		return true;
 	}
 }
 
 
-void ComputeProcessor::VisitNodes(INodeVisitor* visitor)
+bool ComputeProcessor::VisitNodes(INodeVisitor* visitor)
 {
 	assert(visitor != 0);
-	VisitNode(m_RootNode, visitor);
+	return VisitNode(*this, m_RootNode, visitor);
 }
 
 
-void ComputeProcessor::ApplyTransforms()
+cmpError ComputeProcessor::ApplyTransforms()
 {
 	if (m_Transforms.empty())
 	{
@@ -153,8 +164,12 @@ void ComputeProcessor::ApplyTransforms()
 	{
 		ITransform* transform = m_Transforms[i];
 		assert(transform != 0);
-		transform->Apply(*this);
+		cmpError error = transform->Apply(*this);
+		if (!cmpError_OK(&error))
+			return error;
 	}
+
+	return cmpError_CreateOK();
 }
 
 

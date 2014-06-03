@@ -12,13 +12,13 @@ class ComputeProcessor;
 
 struct ITransform
 {
-	virtual void Apply(ComputeProcessor& processor) = 0;
+	virtual cmpError Apply(ComputeProcessor& processor) = 0;
 };
 
 
 struct INodeVisitor
 {
-	virtual void Visit(cmpNode& node) = 0;
+	virtual bool Visit(const ComputeProcessor& processor, cmpNode& node) = 0;
 };
 
 
@@ -29,10 +29,14 @@ public:
 	~ComputeProcessor();
 
 	bool ParseFile(const char* filename, bool verbose);
-	void ApplyTransforms();
-	void VisitNodes(INodeVisitor* visitor);
+	cmpError ApplyTransforms();
+	bool VisitNodes(INodeVisitor* visitor);
+
+	const std::string& Filename() const { return m_Filename; }
 
 private:
+	// Name of the file being parsed
+	std::string m_Filename;
 
 	// Parser runtime
 	cmpMemoryFile* m_MemoryFile;
