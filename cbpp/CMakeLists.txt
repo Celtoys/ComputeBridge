@@ -16,9 +16,9 @@ set(CMAKE_LDFLAGS "${CMAKE_LDFLAGS} -L\".\" ")
 
 set(SRCS
     ../lib/ComputeParser.c
-    ../lib/ComputeParser.h
     src/cbpp.cpp
     src/ComputeProcessor.cpp
+    src/TextureTransform.cpp
 )
 
 add_executable(cbpp ${SRCS})
