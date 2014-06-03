@@ -1016,6 +1016,7 @@ cmpError cmpNode_CreateEmpty(cmpNode** node)
 	// Set defaults
 	(*node)->type = cmpNode_None;
 	(*node)->parent = NULL;
+	(*node)->prev_sibling = NULL;
 	(*node)->next_sibling = NULL;
 	(*node)->first_child = NULL;
 	(*node)->last_child = NULL;
@@ -1070,10 +1071,37 @@ void cmpNode_AddChild(cmpNode* node, cmpNode* child_node)
 	else
 	{
 		node->last_child->next_sibling = child_node;
+		child_node->prev_sibling = node->last_child;
 		node->last_child = child_node;
 	}
 
 	child_node->parent = node;
+}
+
+
+void cmpNode_AddBefore(cmpNode* before, cmpNode* node)
+{
+	assert(before != NULL);
+	assert(node != NULL);
+
+	// Point node to its parent/neighbours
+	node->parent = before->parent;
+	node->prev_sibling = before->prev_sibling;
+	node->next_sibling = before;
+
+	// Does this node become the first child?
+	if (node->prev_sibling == NULL)
+	{
+		// Only allow insert-before when there is parent node
+		assert(node->parent != NULL);
+		node->parent->first_child = node;
+	}
+	else
+	{
+		node->prev_sibling->next_sibling = node;
+	}
+
+	before->prev_sibling = node;
 }
 
 

@@ -293,6 +293,7 @@ typedef struct cmpNode
 
 	// Links within the parse tree
 	struct cmpNode* parent;
+	struct cmpNode* prev_sibling;
 	struct cmpNode* next_sibling;
 	struct cmpNode* first_child;
 	struct cmpNode* last_child;
@@ -308,6 +309,8 @@ cmpError cmpNode_Create(cmpNode** node, enum cmpNodeType type, cmpParserCursor* 
 void cmpNode_Destroy(cmpNode* node);
 
 void cmpNode_AddChild(cmpNode* node, cmpNode* child_node);
+
+void cmpNode_AddBefore(cmpNode* before, cmpNode* node);
 
 cmpNode* cmpParser_ConsumeNode(cmpParserCursor* cur);
 
