@@ -49,7 +49,7 @@ cmpU32 cmpHash(const char* str, cmpU32 length)
 
 
 
-static cmpError cmpError_CreateOK()
+cmpError cmpError_CreateOK()
 {
 	cmpError error;
 	error.text[0] = 0;
@@ -57,7 +57,7 @@ static cmpError cmpError_CreateOK()
 }
 
 
-static cmpError cmpError_Create(const char* format, ...)
+cmpError cmpError_Create(const char* format, ...)
 {
 	cmpError error;
 

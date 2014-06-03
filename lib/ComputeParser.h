@@ -57,7 +57,6 @@ cmpU32 cmpHash(const char* str, cmpU32 length);
 //
 // --- cmpError ----------------------------------------------------------------------------------------
 // Simple error type, storing error text as a string.
-// Instances of this type should not be created but are returned by functions in this API.
 //
 
 // Does the error description represent a successful operation and not an error?
@@ -76,6 +75,10 @@ typedef struct cmpError
 		}
 	#endif
 } cmpError;
+
+cmpError cmpError_CreateOK();
+
+cmpError cmpError_Create(const char* format, ...);
 
 // Guaranteed to return a description of the error
 const char* cmpError_Text(const cmpError* error);
