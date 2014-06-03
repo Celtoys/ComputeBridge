@@ -291,10 +291,11 @@ typedef struct cmpNode
 {
 	enum cmpNodeType type;
 
-	// Links to child nodes
+	// Links within the parse tree
+	struct cmpNode* parent;
+	struct cmpNode* next_sibling;
 	struct cmpNode* first_child;
 	struct cmpNode* last_child;
-	struct cmpNode* next_sibling;
 
 	cmpToken* first_token;
 	cmpToken* last_token;

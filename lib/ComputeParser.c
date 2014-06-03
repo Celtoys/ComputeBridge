@@ -1015,9 +1015,10 @@ cmpError cmpNode_CreateEmpty(cmpNode** node)
 
 	// Set defaults
 	(*node)->type = cmpNode_None;
+	(*node)->parent = NULL;
+	(*node)->next_sibling = NULL;
 	(*node)->first_child = NULL;
 	(*node)->last_child = NULL;
-	(*node)->next_sibling = NULL;
 	(*node)->first_token = NULL;
 	(*node)->last_token = NULL;
 
@@ -1058,6 +1059,7 @@ void cmpNode_Destroy(cmpNode* node)
 void cmpNode_AddChild(cmpNode* node, cmpNode* child_node)
 {
 	assert(node != NULL);
+	assert(child_node != NULL);
 
 	// Add to the end of the list
 	if (node->last_child == NULL)
@@ -1070,6 +1072,8 @@ void cmpNode_AddChild(cmpNode* node, cmpNode* child_node)
 		node->last_child->next_sibling = child_node;
 		node->last_child = child_node;
 	}
+
+	child_node->parent = node;
 }
 
 
