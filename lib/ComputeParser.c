@@ -397,8 +397,7 @@ const char* cmpTokenType_Name(enum cmpTokenType type)
 // =====================================================================================================
 
 
-
-static cmpError cmpToken_Create(cmpToken**token, cmpLexerCursor* cur, enum cmpTokenType type, cmpU32 length)
+cmpError cmpToken_CreateEmpty(cmpToken** token)
 {
 	assert(token != NULL);
 
@@ -407,15 +406,37 @@ static cmpError cmpToken_Create(cmpToken**token, cmpLexerCursor* cur, enum cmpTo
 	if (*token == NULL)
 		return cmpError_Create("malloc(cmpToken) failed");
 
-	(*token)->type = type;
-	(*token)->start = cmpLexerCursor_PeekChars(cur, 0);
-	(*token)->length = length;
-	(*token)->line = cur->line;
+	// Set defaults
+	(*token)->type = cmpToken_None;
+	(*token)->start = NULL;
+	(*token)->length = 0;
+	(*token)->line = 0;
 	(*token)->hash = 0;
 	(*token)->prev = NULL;
 	(*token)->next = NULL;
 
 	return cmpError_CreateOK();
+}
+
+
+cmpError cmpToken_Create(cmpToken** token, enum cmpTokenType type, const char* start, cmpU32 length, cmpU32 line)
+{
+	cmpError error = cmpToken_CreateEmpty(token);
+	if (!cmpError_OK(&error))
+		return error;
+
+	(*token)->type = type;
+	(*token)->start = start;
+	(*token)->length = length;
+	(*token)->line = line;
+
+	return cmpError_CreateOK();
+}
+
+
+static cmpError cmpToken_CreateFromCursor(cmpToken** token, cmpLexerCursor* cur, enum cmpTokenType type, cmpU32 length)
+{
+	return cmpToken_Create(token, type, cmpLexerCursor_PeekChars(cur, 0), length, cur->line);
 }
 
 
@@ -460,7 +481,7 @@ static cmpToken* cmpLexer_ConsumeTokenPred(cmpLexerCursor* cur, enum cmpTokenTyp
 {
 	// Start the token off
 	cmpToken* token;
-	cmpError error = cmpToken_Create(&token, cur, type, initial_length);
+	cmpError error = cmpToken_CreateFromCursor(&token, cur, type, initial_length);
 	if (!cmpError_OK(&error))
 	{
 		cmpLexerCursor_SetError(cur, &error);
@@ -610,7 +631,7 @@ static cmpToken* cmpLexer_ConsumeOperator(cmpLexerCursor* cur, enum cmpTokenType
 
 	// Start the token off
 	cmpToken* token;
-	cmpError error = cmpToken_Create(&token, cur, type, 1);
+	cmpError error = cmpToken_CreateFromCursor(&token, cur, type, 1);
 	if (!cmpError_OK(&error))
 	{
 		cmpLexerCursor_SetError(cur, &error);
@@ -642,7 +663,7 @@ static cmpToken* cmpLexer_ConsumeCharacter(cmpLexerCursor* cur, enum cmpTokenTyp
 {
 	// Create a single character token
 	cmpToken* token;
-	cmpError error = cmpToken_Create(&token, cur, type, 1);
+	cmpError error = cmpToken_CreateFromCursor(&token, cur, type, 1);
 	if (!cmpError_OK(&error))
 	{
 		cmpLexerCursor_SetError(cur, &error);
@@ -657,7 +678,7 @@ static cmpToken* cmpLexer_ConsumeEOL(cmpLexerCursor* cur, enum cmpTokenType type
 {
 	// Create a single character token
 	cmpToken* token;
-	cmpError error = cmpToken_Create(&token, cur, type, 1);
+	cmpError error = cmpToken_CreateFromCursor(&token, cur, type, 1);
 	if (!cmpError_OK(&error))
 	{
 		cmpLexerCursor_SetError(cur, &error);

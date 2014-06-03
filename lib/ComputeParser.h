@@ -221,6 +221,10 @@ typedef struct cmpToken
 	struct cmpToken* next;
 } cmpToken;
 
+cmpError cmpToken_CreateEmpty(cmpToken** token);
+
+cmpError cmpToken_Create(cmpToken** token, enum cmpTokenType type, const char* start, cmpU32 length, cmpU32 line);
+
 void cmpToken_Destroy(cmpToken* token);
 
 void cmpToken_AddToList(cmpToken** first_token, cmpToken** last_token, cmpToken* token);
