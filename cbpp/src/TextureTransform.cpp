@@ -483,8 +483,14 @@ public:
 		token->next = last_token->next;
 		token->next->prev = token;
 
-		// DELETE
-
+		// Delete all tokens replaced
+		last_token = last_token->next;
+		while (first_token != last_token)
+		{
+			cmpToken* next_token = first_token->next;
+			cmpToken_Destroy(first_token);
+			first_token = next_token;
+		}
 
 		return true;
 	}
