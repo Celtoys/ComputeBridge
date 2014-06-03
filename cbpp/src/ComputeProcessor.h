@@ -7,11 +7,19 @@
 #include <vector>
 
 
+class ComputeProcessor;
+
+
+struct ITransform
+{
+	virtual void Apply(ComputeProcessor& processor) = 0;
+};
+
+
 struct INodeVisitor
 {
 	virtual void Visit(cmpNode& node) = 0;
 };
-
 
 
 class ComputeProcessor
@@ -21,6 +29,7 @@ public:
 	~ComputeProcessor();
 
 	bool ParseFile(const char* filename, bool verbose);
+	void ApplyTransforms();
 	void VisitNodes(INodeVisitor* visitor);
 
 private:
@@ -36,6 +45,9 @@ private:
 
 	// Abstract syntax tree
 	cmpNode* m_RootNode;
+
+	// List of active transforms
+	std::vector<ITransform*> m_Transforms;
 };
 
 
@@ -199,5 +211,42 @@ struct MatchValues
 typedef MatchValues<cmpTokenType, &cmpToken::type> MatchTypes;
 typedef MatchValues<cmpU32, &cmpToken::hash> MatchHashes;
 
+
+
+//
+// Type that records the functions required to create and destroy transforms.
+//
+struct TransformDescBase
+{
+	typedef ITransform* (*NewFunc)();
+	typedef void (*DeleteFunc)(ITransform*);
+
+	TransformDescBase(NewFunc new_func, DeleteFunc delete_func);
+
+	NewFunc new_func;
+	DeleteFunc delete_func;
+};
+
+
+//
+// Create a static instance of this type to auto-register your transform.
+//
+template <typename TYPE>
+struct TransformDesc : public TransformDescBase
+{
+	static ITransform* New()
+	{
+		return static_cast<ITransform*>(new TYPE());
+	}
+	static void Delete(ITransform* transform)
+	{
+		delete static_cast<TYPE*>(transform);
+	}
+
+	TransformDesc()
+		: TransformDescBase(New, Delete)
+	{
+	}
+};
 
 #endif

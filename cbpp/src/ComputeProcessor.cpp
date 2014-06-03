@@ -4,6 +4,10 @@
 #include <cassert>
 
 
+// List of all registered transform descriptions
+static std::vector<TransformDescBase*> g_TransformDescs;
+
+
 ComputeProcessor::ComputeProcessor()
 	: m_MemoryFile(0)
 	, m_LexerCursor(0)
@@ -17,6 +21,15 @@ ComputeProcessor::ComputeProcessor()
 
 ComputeProcessor::~ComputeProcessor()
 {
+	// Destroy all transforms, assuming transform description list and allocate transforms lists are in sync
+	for (size_t i = 0; i < m_Transforms.size(); i++)
+	{
+		const TransformDescBase* desc = g_TransformDescs[i];
+		assert(desc != 0);
+		assert(desc->delete_func != 0);
+		desc->delete_func(m_Transforms[i]);
+	}
+
 	// Destroy all tokens
 	while (m_FirstToken != 0)
 	{
@@ -119,6 +132,32 @@ void ComputeProcessor::VisitNodes(INodeVisitor* visitor)
 }
 
 
+void ComputeProcessor::ApplyTransforms()
+{
+	if (m_Transforms.empty())
+	{
+		// Create all transforms for the processor the first time this function is called
+		for (size_t i = 0; i < g_TransformDescs.size(); i++)
+		{
+			const TransformDescBase* desc = g_TransformDescs[i];
+			assert(desc != 0);
+			assert(desc->new_func != 0);
+			ITransform* transform = desc->new_func();
+			assert(transform != 0);
+			m_Transforms.push_back(transform);
+		}
+	}
+
+	// Apply all transforms in the (indeterminate) order they are registered
+	for (size_t i = 0; i < m_Transforms.size(); i++)
+	{
+		ITransform* transform = m_Transforms[i];
+		assert(transform != 0);
+		transform->Apply(*this);
+	}
+}
+
+
 TokenIterator::TokenIterator(cmpNode& node)
 	: first_token(node.first_token)
 	, last_token(node.last_token ? node.last_token->next : 0)
@@ -155,4 +194,13 @@ TokenIterator& TokenIterator::operator ++ ()
 		token = 0;
 
 	return *this;
+}
+
+
+TransformDescBase::TransformDescBase(NewFunc new_func, DeleteFunc delete_func)
+	: new_func(new_func)
+	, delete_func(delete_func)
+{
+	// Register transform description
+	g_TransformDescs.push_back(this);
 }
