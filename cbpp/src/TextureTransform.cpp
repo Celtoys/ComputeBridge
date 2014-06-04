@@ -40,7 +40,10 @@ namespace
 	Keyword KEYWORD_signed("signed");
 	Keyword KEYWORD_unsigned("unsigned");
 
+	Keyword KEYWORD_cmp_kernel_fn("cmp_kernel_fn");
 	Keyword KEYWORD_cmp_texture_type("cmp_texture_type");
+	Keyword KEYWORD_cmp_kernel_texture_decl("cmp_kernel_texture_decl");
+	Keyword KEYWORD_cmp_kernel_texture_decl_comma("cmp_kernel_texture_decl_comma");
 
 	// Texture dimensions
 	Keyword KEYWORD_1("1");
@@ -80,6 +83,26 @@ struct TextureRef
 		, end_of_type_token(0)
 		, name_token(0)
 	{
+	}
+
+
+	cmpU32 Dimensions() const
+	{
+		assert(keyword_token != 0);
+		assert(keyword_token->length > 7);
+		cmpU32 dimensions = keyword_token->start[7] - '0';
+		assert(dimensions < 4);
+		return dimensions;
+	}
+
+
+	char ReadType() const
+	{
+		assert(keyword_token != 0);
+		assert(keyword_token->length > 9);
+		char read_type = keyword_token->start[9];
+		assert(read_type == 'u' || read_type == 'n');
+		return read_type;
 	}
 
 	// Pointer to the statement, typedef or function parameter list
@@ -277,6 +300,20 @@ namespace
 		assert(found_ref != 0);
 		return *found_ref;
 	}
+
+
+	const Keyword* GetDimensionsKeyword(cmpU32 dimensions)
+	{
+		const Keyword* kw_dimensions = 0;
+		switch (dimensions)
+		{
+			case 1: kw_dimensions = &KEYWORD_1; break;
+			case 2: kw_dimensions = &KEYWORD_2; break;
+			case 3: kw_dimensions = &KEYWORD_3; break;
+		}
+		assert(kw_dimensions != 0);
+		return kw_dimensions;
+	}
 }
 
 
@@ -339,13 +376,72 @@ struct String
 };
 
 
+//
+// Token list wrapper that stores the first/last tokens in a list
+//
+struct cmpTokenList
+{
+	cmpTokenList()
+		: first_token(0)
+		, last_token(0)
+		, last_error(cmpError_CreateOK())
+	{
+	}
+
+
+	cmpTokenList(cmpToken* first_token, cmpToken* last_token)
+		: first_token(first_token)
+		, last_token(last_token)
+		, last_error(cmpError_CreateOK())
+	{
+	}
+
+
+	cmpToken* Add(enum cmpTokenType type, const char* start, cmpU32 length, cmpU32 line)
+	{
+		cmpToken* token;
+		last_error = cmpToken_Create(&token, type, start, length, line);
+		if (!cmpError_OK(&last_error))
+			return 0;
+		cmpToken_AddToList(&first_token, &last_token, token);
+		return token;
+	}
+
+
+	cmpToken* Add(const Keyword& keyword, cmpU32 line)
+	{
+		// Create a symbol token using globally persistent keyword text
+		cmpToken* token = Add(cmpToken_Symbol, keyword.text, keyword.length, line);
+		if (token != 0)
+			token->hash = keyword.hash;
+		return token;
+	}
+
+
+	void DeleteAll()
+	{
+		// Move one beyond last for while comparison delete to be inclusive
+		last_token = last_token->next;
+		while (first_token != last_token)
+		{
+			cmpToken* next = first_token->next;
+			cmpToken_Destroy(first_token);
+			first_token = next;
+		}
+	}
+
+
+	cmpToken* first_token;
+	cmpToken* last_token;
+	cmpError last_error;
+};
+
+
 class TextureType
 {
 public:
 	TextureType(cmpU32 texture_refs_key)
 		: m_TextureRefsKey(texture_refs_key)
-		, m_FirstToken(0)
-		, m_LastToken(0)
 		, m_LastError(cmpError_CreateOK())
 	{
 	}
@@ -354,88 +450,68 @@ public:
 	~TextureType()
 	{
 		// Responsibility for cleaning created tokens belongs with this object
-		while (m_FirstToken != 0)
-		{
-			cmpToken* next = m_FirstToken->next;
-			cmpToken_Destroy(m_FirstToken);
-			m_FirstToken = next;
-		}
+		m_TypeDeclTokens.DeleteAll();
 	}
 
 
 	bool AddTypeDeclaration(const TextureRef& ref, int unique_index)
 	{
 		// Start off the macro call
-		if (!AddToken(KEYWORD_cmp_texture_type, ref.line))
-			return false;
-		if (!AddToken(cmpToken_LBracket, "(", 1, ref.line))
-			return false;
+		if (!m_TypeDeclTokens.Add(KEYWORD_cmp_texture_type, ref.line))
+			return Failed(m_TypeDeclTokens);
+		if (!m_TypeDeclTokens.Add(cmpToken_LBracket, "(", 1, ref.line))
+			return Failed(m_TypeDeclTokens);
 
 		// Add the texel type name tokens
 		const cmpToken* type_token = ref.type_token;
 		assert(type_token != 0);
-		if (!AddToken(cmpToken_Symbol, type_token->start, type_token->length, ref.line))
-			return false;
+		if (!m_TypeDeclTokens.Add(cmpToken_Symbol, type_token->start, type_token->length, ref.line))
+			return Failed(m_TypeDeclTokens);
 		if (ref.nb_type_tokens > 1)
 		{
 			type_token = type_token->next;
 			assert(type_token != 0);
-			if (!AddToken(cmpToken_Symbol, type_token->start, type_token->length, ref.line))
-				return false;
+			if (!m_TypeDeclTokens.Add(cmpToken_Symbol, type_token->start, type_token->length, ref.line))
+				return Failed(m_TypeDeclTokens);
 		}
-		if (!AddToken(cmpToken_Comma, ",", 1, ref.line))
-			return false;
-
-		// Decode number of texture dimensions and read type
-		const cmpToken* keyword_token = ref.keyword_token;
-		assert(keyword_token != 0);
-		assert(keyword_token->length == 10);
-		const char* keyword = keyword_token->start;
-		cmpU32 dimensions = keyword[7] - '0';
-		assert(dimensions < 4);
-		char read_type = keyword[9];
-		assert(read_type == 'u' || read_type == 'n');
+		if (!m_TypeDeclTokens.Add(cmpToken_Comma, ",", 1, ref.line))
+			return Failed(m_TypeDeclTokens);
 
 		// Add the texture dimension token
-		const Keyword* kw_dimensions = 0;
-		switch (dimensions)
-		{
-			case 1: kw_dimensions = &KEYWORD_1; break;
-			case 2: kw_dimensions = &KEYWORD_2; break;
-			case 3: kw_dimensions = &KEYWORD_3; break;
-		}
-		assert(kw_dimensions != 0);
-		if (!AddToken(cmpToken_Number, kw_dimensions->text, kw_dimensions->length, ref.line))
-			return false;
-		if (!AddToken(cmpToken_Comma, ",", 1, ref.line))
-			return false;
+		cmpU32 dimensions = ref.Dimensions();
+		const Keyword* kw_dimensions = GetDimensionsKeyword(dimensions);
+		if (!m_TypeDeclTokens.Add(cmpToken_Number, kw_dimensions->text, kw_dimensions->length, ref.line))
+			return Failed(m_TypeDeclTokens);
+		if (!m_TypeDeclTokens.Add(cmpToken_Comma, ",", 1, ref.line))
+			return Failed(m_TypeDeclTokens);
 
 		// Add read type token
+		char read_type = ref.ReadType();
 		if (read_type == 'u')
 		{
-			if (!AddToken(KEYWORD_cudaReadModeElementType, ref.line))
-				return false;
+			if (!m_TypeDeclTokens.Add(KEYWORD_cudaReadModeElementType, ref.line))
+				return Failed(m_TypeDeclTokens);
 		}
 		else
 		{
-			if (!AddToken(KEYWORD_cudaReadModeNormalizedFloat, ref.line))
-				return false;
+			if (!m_TypeDeclTokens.Add(KEYWORD_cudaReadModeNormalizedFloat, ref.line))
+				return Failed(m_TypeDeclTokens);
 		}
-		if (!AddToken(cmpToken_Comma, ",", 1, ref.line))
-			return false;
+		if (!m_TypeDeclTokens.Add(cmpToken_Comma, ",", 1, ref.line))
+			return Failed(m_TypeDeclTokens);
 
 		// Generate a unique type name and add as a symbol token
 		char type_name[64];
 		sprintf(type_name, "__TextureTypeName_%d__", unique_index);
 		m_Name = String(type_name);
-		if (!AddToken(cmpToken_Symbol, m_Name.text, m_Name.length, ref.line))
-			return false;
+		if (!m_TypeDeclTokens.Add(cmpToken_Symbol, m_Name.text, m_Name.length, ref.line))
+			return Failed(m_TypeDeclTokens);
 
 		// Close the statement
-		if (!AddToken(cmpToken_RBracket, ")", 1, ref.line))
-			return false;
-		if (!AddToken(cmpToken_SemiColon, ";", 1, ref.line))
-			return false;
+		if (!m_TypeDeclTokens.Add(cmpToken_RBracket, ")", 1, ref.line))
+			return Failed(m_TypeDeclTokens);
+		if (!m_TypeDeclTokens.Add(cmpToken_SemiColon, ";", 1, ref.line))
+			return Failed(m_TypeDeclTokens);
 
 		// Create the containing node (to be deleted by the parse tree)
 		cmpNode* type_node;
@@ -443,19 +519,11 @@ public:
 		if (!cmpError_OK(&m_LastError))
 			return false;
 		type_node->type = cmpNode_UserTokens;
-		type_node->first_token = m_FirstToken;
-		type_node->last_token = m_LastToken;
+		type_node->first_token = m_TypeDeclTokens.first_token;
+		type_node->last_token = m_TypeDeclTokens.last_token;
 
-		// Always insert right before typedefs
-		cmpNode* insert_before_node = ref.node;
-		if (insert_before_node->type != cmpNode_Typedef)
-		{
-			// Anything else must be placed just before the parent function definition/declaration
-			while (insert_before_node != 0 &&
-				   insert_before_node->type != cmpNode_FunctionDefn &&
-				   insert_before_node->type != cmpNode_FunctionDecl)
-				insert_before_node = insert_before_node->parent;
-		}
+		// Add right before the containing parent
+		cmpNode* insert_before_node = FindContainerParent(ref.node);
 		if (insert_before_node == NULL)
 		{
 			m_LastError = cmpError_Create("Failed to find good location for type declaration");
@@ -469,6 +537,24 @@ public:
 
 	bool ReplaceTypeInstance(const TextureRef& ref)
 	{
+		// Earlier errors should have caught the absence of a containing parent
+		cmpNode* container_parent = FindContainerParent(ref.node);
+		assert(container_parent != 0);
+
+		// function decl: remove parameter
+		// function defn: remove parameter, insert global definition, insert local param
+
+		// Is this a kernel function definition/declaration?
+		if (ref.node->type == cmpNode_FunctionParams &&
+			(container_parent->type == cmpNode_FunctionDefn ||
+			 container_parent->type == cmpNode_FunctionDecl))
+		{
+			TokenIterator i(*container_parent);
+			i.SkipWhitespace();
+			if (i.token != NULL && i.token->hash == KEYWORD_cmp_kernel_fn.hash)
+				return ReplaceKernelParameter(ref, container_parent);
+		}
+
 		// Create the single replacement token
 		cmpToken* token;
 		m_LastError = cmpToken_Create(&token, cmpToken_Symbol, m_Name.text, m_Name.length, ref.line);
@@ -476,21 +562,73 @@ public:
 			return false;
 
 		// Cut out the original tokens and replace with the new one
-		cmpToken* first_token = ref.keyword_token;
-		cmpToken* last_token = ref.end_of_type_token;
-		token->prev = first_token->prev;
+		cmpTokenList old_tokens(ref.keyword_token, ref.end_of_type_token);
+		token->prev = old_tokens.first_token->prev;
 		token->prev->next = token;
-		token->next = last_token->next;
+		token->next = old_tokens.last_token->next;
 		token->next->prev = token;
+		old_tokens.DeleteAll();
 
-		// Delete all tokens replaced
-		last_token = last_token->next;
-		while (first_token != last_token)
+		return true;
+	}
+
+
+	bool ReplaceKernelParameter(const TextureRef& ref, cmpNode* function_node)
+	{
+		// Parameters with no names should have been caught as errors earlier
+		cmpToken* name_token = ref.name_token;
+		assert(name_token != 0);
+
+		// Seek to the next parameter separator or the end of the parameters
+		cmpTokenList old_tokens(ref.keyword_token, ref.name_token);
+		while (old_tokens.last_token != 0 &&
+			   old_tokens.last_token->type != cmpToken_Comma &&
+			   old_tokens.last_token->type != cmpToken_RBracket)
+			old_tokens.last_token = old_tokens.last_token->next;
+		assert(old_tokens.last_token != 0);
+
+		// Middle parameters replace parameter and comma
+		// End parameters replace just the parameter
+		const Keyword* keyword = &KEYWORD_cmp_kernel_texture_decl_comma;
+		if (old_tokens.last_token->type == cmpToken_RBracket)
 		{
-			cmpToken* next_token = first_token->next;
-			cmpToken_Destroy(first_token);
-			first_token = next_token;
+			keyword = &KEYWORD_cmp_kernel_texture_decl;
+			old_tokens.last_token = ref.name_token;
 		}
+
+		// All token replacement happens on the same line 
+		cmpU32 line = ref.name_token->line;
+
+		// Start of the replacement tokens
+		cmpTokenList new_tokens;
+		if (new_tokens.Add(*keyword, line) == 0)
+			return Failed(new_tokens);
+		if (new_tokens.Add(cmpToken_LBracket, "(", 1, line) == 0)
+			return Failed(new_tokens);
+
+		// Add texture dimensions
+		cmpU32 dimensions = ref.Dimensions();
+		const Keyword* kw_dimensions = GetDimensionsKeyword(dimensions);
+		if (new_tokens.Add(cmpToken_Number, kw_dimensions->text, kw_dimensions->length, line) == 0)
+			return Failed(new_tokens);
+		if (new_tokens.Add(cmpToken_Comma, ",", 1, line) == 0)
+			return Failed(new_tokens);
+
+		// Finish with the parameter name
+		if (new_tokens.Add(cmpToken_Symbol, name_token->start, name_token->length, line) == 0)
+			return Failed(new_tokens);
+		if (new_tokens.Add(cmpToken_RBracket, ")", 1, line) == 0)
+			return Failed(new_tokens);
+
+		// Replace the old tokens with the new ones
+		old_tokens.first_token->prev->next = new_tokens.first_token;
+		new_tokens.first_token->prev = old_tokens.first_token->prev;
+		old_tokens.last_token->next->prev = new_tokens.last_token;
+		new_tokens.last_token->next = old_tokens.last_token->next;
+
+		// As the new tokens are being placed in the main token list, they'll get cleaned up safely
+		// What remains is to clean the old tokens that were pulled out
+		old_tokens.DeleteAll();
 
 		return true;
 	}
@@ -509,24 +647,27 @@ public:
 
 
 private:
-	cmpToken* AddToken(enum cmpTokenType type, const char* start, cmpU32 length, cmpU32 line)
+	bool Failed(const cmpTokenList& list)
 	{
-		cmpToken* token;
-		m_LastError = cmpToken_Create(&token, type, start, length, line);
-		if (!cmpError_OK(&m_LastError))
-			return 0;
-		cmpToken_AddToList(&m_FirstToken, &m_LastToken, token);
-		return token;
+		// Record error for future inspection
+		m_LastError = list.last_error;
+		return false;
 	}
 
 
-	cmpToken* AddToken(const Keyword& keyword, cmpU32 line)
+	cmpNode* FindContainerParent(cmpNode* node)
 	{
-		// Create a symbol token using globally persistent keyword text
-		cmpToken* token = AddToken(cmpToken_Symbol, keyword.text, keyword.length, line);
-		if (token != 0)
-			token->hash = keyword.hash;
-		return token;
+		// Typedefs are already a parent
+		if (node->type == cmpNode_Typedef)
+			return node;
+
+		// Search up for a function definition/declaration
+		while (node != 0 &&
+			   node->type != cmpNode_FunctionDefn &&
+			   node->type != cmpNode_FunctionDecl)
+			node = node->parent;
+
+		return node;
 	}
 
 
@@ -536,9 +677,8 @@ private:
 	// Name of the uniquely generated string type
 	String m_Name;
 
-	// Linked list of tokens created by this texture type
-	cmpToken* m_FirstToken;
-	cmpToken* m_LastToken;
+	// Tokens created for the unique typedef
+	cmpTokenList m_TypeDeclTokens;
 
 	cmpError m_LastError;
 };
