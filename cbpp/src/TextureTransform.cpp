@@ -324,8 +324,7 @@ namespace
 	{
 		// Create a symbol token using globally persistent keyword text
 		cmpToken* token = tokens.Add(cmpToken_Symbol, keyword.text, keyword.length, line);
-		if (token != 0)
-			token->hash = keyword.hash;
+		token->hash = keyword.hash;
 		return token;
 	}
 }
@@ -343,7 +342,6 @@ class TextureType
 public:
 	TextureType(cmpU32 texture_refs_key)
 		: m_TextureRefsKey(texture_refs_key)
-		, m_LastError(cmpError_CreateOK())
 	{
 	}
 
@@ -357,77 +355,57 @@ public:
 	}
 
 
-	bool AddTypeDeclaration(const TextureRef& ref, int unique_index)
+	void AddTypeDeclaration(const TextureRef& ref, int unique_index)
 	{
 		// Start off the macro call
-		if (!AddToken(m_TypeDeclTokens, KEYWORD_cmp_texture_type, ref.line))
-			return Failed(m_TypeDeclTokens);
-		if (!m_TypeDeclTokens.Add(cmpToken_LBracket, ref.line))
-			return Failed(m_TypeDeclTokens);
+		AddToken(m_TypeDeclTokens, KEYWORD_cmp_texture_type, ref.line);
+		m_TypeDeclTokens.Add(cmpToken_LBracket, ref.line);
 
 		// Add the texel type name tokens
 		const cmpToken* type_token = ref.type_token;
 		assert(type_token != 0);
-		if (!m_TypeDeclTokens.Add(cmpToken_Symbol, type_token->start, type_token->length, ref.line))
-			return Failed(m_TypeDeclTokens);
+		m_TypeDeclTokens.Add(cmpToken_Symbol, type_token->start, type_token->length, ref.line);
 		if (ref.nb_type_tokens > 1)
 		{
 			type_token = type_token->next;
 			assert(type_token != 0);
-			if (!m_TypeDeclTokens.Add(cmpToken_Symbol, type_token->start, type_token->length, ref.line))
-				return Failed(m_TypeDeclTokens);
+			m_TypeDeclTokens.Add(cmpToken_Symbol, type_token->start, type_token->length, ref.line);
 		}
-		if (!m_TypeDeclTokens.Add(cmpToken_Comma, ref.line))
-			return Failed(m_TypeDeclTokens);
+		m_TypeDeclTokens.Add(cmpToken_Comma, ref.line);
 
 		// Add the texture dimension token
 		cmpU32 dimensions = ref.Dimensions();
 		const Keyword* kw_dimensions = GetDimensionsKeyword(dimensions);
-		if (!m_TypeDeclTokens.Add(cmpToken_Number, kw_dimensions->text, kw_dimensions->length, ref.line))
-			return Failed(m_TypeDeclTokens);
-		if (!m_TypeDeclTokens.Add(cmpToken_Comma, ref.line))
-			return Failed(m_TypeDeclTokens);
+		m_TypeDeclTokens.Add(cmpToken_Number, kw_dimensions->text, kw_dimensions->length, ref.line);
+		m_TypeDeclTokens.Add(cmpToken_Comma, ref.line);
 
 		// Add read type token
 		char read_type = ref.ReadType();
 		if (read_type == 'u')
-		{
-			if (!AddToken(m_TypeDeclTokens, KEYWORD_cudaReadModeElementType, ref.line))
-				return Failed(m_TypeDeclTokens);
-		}
+			AddToken(m_TypeDeclTokens, KEYWORD_cudaReadModeElementType, ref.line);
 		else
-		{
-			if (!AddToken(m_TypeDeclTokens, KEYWORD_cudaReadModeNormalizedFloat, ref.line))
-				return Failed(m_TypeDeclTokens);
-		}
-		if (!m_TypeDeclTokens.Add(cmpToken_Comma, ref.line))
-			return Failed(m_TypeDeclTokens);
+			AddToken(m_TypeDeclTokens, KEYWORD_cudaReadModeNormalizedFloat, ref.line);
+		m_TypeDeclTokens.Add(cmpToken_Comma, ref.line);
 
 		// Generate a unique type name and add as a symbol token
 		char type_name[64];
 		sprintf(type_name, "__TextureTypeName_%d__", unique_index);
 		m_Name = String(type_name);
-		if (!m_TypeDeclTokens.Add(cmpToken_Symbol, m_Name.text, m_Name.length, ref.line))
-			return Failed(m_TypeDeclTokens);
+		m_TypeDeclTokens.Add(cmpToken_Symbol, m_Name.text, m_Name.length, ref.line);
 
 		// Close the statement
-		if (!m_TypeDeclTokens.Add(cmpToken_RBracket, ref.line))
-			return Failed(m_TypeDeclTokens);
-		if (!m_TypeDeclTokens.Add(cmpToken_SemiColon, ref.line))
-			return Failed(m_TypeDeclTokens);
+		m_TypeDeclTokens.Add(cmpToken_RBracket, ref.line);
+		m_TypeDeclTokens.Add(cmpToken_SemiColon, ref.line);
 
-		return AddNodeBeforeContainerParent(m_TypeDeclTokens, ref.node);
+		AddNodeBeforeContainerParent(m_TypeDeclTokens, ref.node);
 	}
 
 
-	bool ReplaceTypeInstance(const TextureRef& ref)
+	void ReplaceTypeInstance(const TextureRef& ref)
 	{
 		// Earlier errors should have caught the absence of a containing parent
 		cmpNode* container_parent = FindContainerParent(ref.node);
 		assert(container_parent != 0);
-
-		// function decl: remove parameter
-		// function defn: remove parameter, insert global definition, insert local param
 
 		// Is this a kernel function definition/declaration?
 		if (ref.node->type == cmpNode_FunctionParams &&
@@ -439,27 +417,24 @@ public:
 			if (i.token != NULL && i.token->hash == KEYWORD_cmp_kernel_fn.hash)
 			{
 				// Declarations/definitions require kernel parameter replacement
-				if (!ReplaceKernelParameter(ref, container_parent))
-					return false;
+				ReplaceKernelParameter(ref, container_parent);
 
 				// Definitions require a global variable and assignment to the variable
 				if (container_parent->type == cmpNode_FunctionDefn)
 				{
-					if (!AddKernelGlobalTextureDef(ref, container_parent))
-						return false;
-					if (!AddKernelLocalTextureDef(ref, container_parent))
-						return false;
+					AddKernelGlobalTextureDef(ref, container_parent);
+					AddKernelLocalTextureDef(ref, container_parent);
 				}
 
-				return true;
+				return;
 			}
 		}
 
 		// Create the single replacement token
 		cmpToken* token;
-		m_LastError = cmpToken_Create(&token, cmpToken_Symbol, m_Name.text, m_Name.length, ref.line);
-		if (!cmpError_OK(&m_LastError))
-			return false;
+		cmpError error = cmpToken_Create(&token, cmpToken_Symbol, m_Name.text, m_Name.length, ref.line);
+		if (!cmpError_OK(&error))
+			throw error;
 
 		// Cut out the original tokens and replace with the new one
 		TokenList old_tokens(ref.keyword_token, ref.end_of_type_token);
@@ -468,8 +443,6 @@ public:
 		token->next = old_tokens.last->next;
 		token->next->prev = token;
 		old_tokens.DeleteAll();
-
-		return true;
 	}
 
 
@@ -479,24 +452,11 @@ public:
 	}
 
 
-	cmpError LastError() const
-	{
-		return m_LastError;
-	}
-
-
 private:
 	// Non-copyable
 	TextureType(const TextureType&);
 	TextureType& operator = (const TextureType&);
 
-
-	bool Failed(const TokenList& list)
-	{
-		// Record error for future inspection
-		m_LastError = list.error;
-		return false;
-	}
 
 
 	cmpNode* FindContainerParent(cmpNode* node)
@@ -515,13 +475,13 @@ private:
 	}
 
 
-	bool AddNodeBeforeContainerParent(const TokenList& tokens, cmpNode* child_node)
+	void AddNodeBeforeContainerParent(const TokenList& tokens, cmpNode* child_node)
 	{
 		// Create the containing node (to be deleted by the parse tree)
 		cmpNode* node;
-		m_LastError = cmpNode_CreateEmpty(&node);
-		if (!cmpError_OK(&m_LastError))
-			return false;
+		cmpError error = cmpNode_CreateEmpty(&node);
+		if (!cmpError_OK(&error))
+			throw error;
 		node->type = cmpNode_UserTokens;
 		node->first_token = tokens.first;
 		node->last_token = tokens.last;
@@ -529,17 +489,12 @@ private:
 		// Add right before the containing parent
 		cmpNode* insert_before_node = FindContainerParent(child_node);
 		if (insert_before_node == NULL)
-		{
-			m_LastError = cmpError_Create("Failed to find good location for global texture definition");
-			return false;
-		}
+			throw cmpError_Create("Failed to find a container parent for insertion");
 		cmpNode_AddBefore(insert_before_node, node);
-
-		return true;
 	}
 
 
-	bool ReplaceKernelParameter(const TextureRef& ref, cmpNode* function_node)
+	void ReplaceKernelParameter(const TextureRef& ref, cmpNode* function_node)
 	{
 		// Parameters with no names should have been caught as errors earlier
 		cmpToken* name_token = ref.name_token;
@@ -567,24 +522,18 @@ private:
 
 		// Start of the replacement tokens
 		TokenList new_tokens;
-		if (AddToken(new_tokens, *keyword, line) == 0)
-			return Failed(new_tokens);
-		if (new_tokens.Add(cmpToken_LBracket, line) == 0)
-			return Failed(new_tokens);
+		AddToken(new_tokens, *keyword, line);
+		new_tokens.Add(cmpToken_LBracket, line);
 
 		// Add texture dimensions
 		cmpU32 dimensions = ref.Dimensions();
 		const Keyword* kw_dimensions = GetDimensionsKeyword(dimensions);
-		if (new_tokens.Add(cmpToken_Number, kw_dimensions->text, kw_dimensions->length, line) == 0)
-			return Failed(new_tokens);
-		if (new_tokens.Add(cmpToken_Comma, line) == 0)
-			return Failed(new_tokens);
+		new_tokens.Add(cmpToken_Number, kw_dimensions->text, kw_dimensions->length, line);
+		new_tokens.Add(cmpToken_Comma, line);
 
 		// Finish with the parameter name
-		if (new_tokens.Add(cmpToken_Symbol, ref.name.text, ref.name.length, line) == 0)
-			return Failed(new_tokens);
-		if (new_tokens.Add(cmpToken_RBracket, line) == 0)
-			return Failed(new_tokens);
+		new_tokens.Add(cmpToken_Symbol, ref.name.text, ref.name.length, line);
+		new_tokens.Add(cmpToken_RBracket, line);
 
 		// Replace the old tokens with the new ones
 		old_tokens.first->prev->next = new_tokens.first;
@@ -595,25 +544,19 @@ private:
 		// As the new tokens are being placed in the main token list, they'll get cleaned up safely
 		// What remains is to clean the old tokens that were pulled out
 		old_tokens.DeleteAll();
-
-		return true;
 	}
 
 
-	bool AddKernelGlobalTextureDef(const TextureRef& ref, cmpNode* function_node)
+	void AddKernelGlobalTextureDef(const TextureRef& ref, cmpNode* function_node)
 	{
 		TextureGlobalVar var;
 
 		// Start the token list
 		cmpU32 line = function_node->first_token->line;
-		if (AddToken(var.tokens, KEYWORD_cmp_kernel_texture_global_def, line) == 0)
-			return Failed(var.tokens);
-		if (var.tokens.Add(cmpToken_LBracket, line) == 0)
-			return Failed(var.tokens);
-		if (var.tokens.Add(cmpToken_Symbol, m_Name.text, m_Name.length, line) == 0)
-			return Failed(var.tokens);
-		if (var.tokens.Add(cmpToken_Comma, line) == 0)
-			return Failed(var.tokens);
+		AddToken(var.tokens, KEYWORD_cmp_kernel_texture_global_def, line);
+		var.tokens.Add(cmpToken_LBracket, line);
+		var.tokens.Add(cmpToken_Symbol, m_Name.text, m_Name.length, line);
+		var.tokens.Add(cmpToken_Comma, line);
 
 		// Locate the name of the function
 		cmpToken* function_name_token = function_node->last_token;
@@ -624,23 +567,17 @@ private:
 		char texture_var[64];
 		sprintf(texture_var, "__TextureVar_%.*s_%s__", function_name_token->length, function_name_token->start, ref.name.text);
 		var.name = String(texture_var);
-		if (var.tokens.Add(cmpToken_Symbol, var.name.text, var.name.length, line) == 0)
-			return Failed(var.tokens);
-		if (var.tokens.Add(cmpToken_RBracket, line) == 0)
-			return Failed(var.tokens);
-		if (var.tokens.Add(cmpToken_SemiColon, line) == 0)
-			return Failed(var.tokens);
+		var.tokens.Add(cmpToken_Symbol, var.name.text, var.name.length, line);
+		var.tokens.Add(cmpToken_RBracket, line);
+		var.tokens.Add(cmpToken_SemiColon, line);
 
-		if (!AddNodeBeforeContainerParent(var.tokens, ref.node))
-			return false;
+		AddNodeBeforeContainerParent(var.tokens, ref.node);
 
 		m_GlobalVars.push_back(var);
-
-		return true;
 	}
 
 
-	bool AddKernelLocalTextureDef(const TextureRef& ref, cmpNode* function_node)
+	void AddKernelLocalTextureDef(const TextureRef& ref, cmpNode* function_node)
 	{
 		// Search for the function's statement block, which should be there as verified by earlier checks
 		cmpNode* block_node = function_node->first_child;
@@ -653,24 +590,15 @@ private:
 		// Build tokens for the definition
 		TokenList tokens;
 		cmpU32 line = function_node->first_token->line;
-		if (AddToken(tokens, KEYWORD_cmp_kernel_texture_local_def, line) == 0)
-			return Failed(tokens);
-		if (tokens.Add(cmpToken_LBracket, line) == 0)
-			return Failed(tokens);
-		if (tokens.Add(cmpToken_Symbol, m_Name.text, m_Name.length, line) == 0)
-			return Failed(tokens);
-		if (tokens.Add(cmpToken_Comma, line) == 0)
-			return Failed(tokens);
-		if (tokens.Add(cmpToken_Symbol, ref.name.text, ref.name.length, line) == 0)
-			return Failed(tokens);
-		if (tokens.Add(cmpToken_Comma, line) == 0)
-			return Failed(tokens);
-		if (tokens.Add(cmpToken_Symbol, var.name.text, var.name.length, line) == 0)
-			return Failed(tokens);
-		if (tokens.Add(cmpToken_RBracket, line) == 0)
-			return Failed(tokens);
-		if (tokens.Add(cmpToken_SemiColon, line) == 0)
-			return Failed(tokens);
+		AddToken(tokens, KEYWORD_cmp_kernel_texture_local_def, line);
+		tokens.Add(cmpToken_LBracket, line);
+		tokens.Add(cmpToken_Symbol, m_Name.text, m_Name.length, line);
+		tokens.Add(cmpToken_Comma, line);
+		tokens.Add(cmpToken_Symbol, ref.name.text, ref.name.length, line);
+		tokens.Add(cmpToken_Comma, line);
+		tokens.Add(cmpToken_Symbol, var.name.text, var.name.length, line);
+		tokens.Add(cmpToken_RBracket, line);
+		tokens.Add(cmpToken_SemiColon, line);
 
 		// Place just after the brace
 		cmpToken* brace_token = block_node->first_token;
@@ -680,8 +608,6 @@ private:
 		brace_token->next = tokens.first;
 		tokens.first->prev = brace_token;
 		block_node->last_token = tokens.last;
-
-		return true;
 	}
 
 
@@ -695,8 +621,6 @@ private:
 	TokenList m_TypeDeclTokens;
 
 	std::vector<TextureGlobalVar> m_GlobalVars;
-
-	cmpError m_LastError;
 };
 
 
@@ -734,9 +658,12 @@ private:
 			TextureType* texture_type = new TextureType(i->first);
 
 			// Place a type declaration somewhere before the first node
-			if (!texture_type->AddTypeDeclaration(first_ref, m_UniqueTypeIndex++))
+			try
 			{
-				cmpError error = texture_type->LastError();
+				texture_type->AddTypeDeclaration(first_ref, m_UniqueTypeIndex++);
+			}
+			catch (const cmpError& error)
+			{
 				delete texture_type;
 				return error;
 			}
@@ -752,8 +679,14 @@ private:
 
 			for (size_t j = 0; j < refs.size(); j++)
 			{
-				if (!texture_type.ReplaceTypeInstance(refs[j]))
-					return texture_type.LastError();
+				try
+				{
+					texture_type.ReplaceTypeInstance(refs[j]);
+				}
+				catch (const cmpError& error)
+				{
+					return error;
+				}
 			}
 		}
 

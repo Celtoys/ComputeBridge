@@ -36,7 +36,7 @@ cmpToken* TokenList::Add(enum cmpTokenType type, const char* start, cmpU32 lengt
 	cmpToken* token;
 	error = cmpToken_Create(&token, type, start, length, line);
 	if (!cmpError_OK(&error))
-		return 0;
+		throw error;
 	return Add(token);
 }
 
