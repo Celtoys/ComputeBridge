@@ -42,6 +42,18 @@ cmpU32 cmpHash(const char* str, cmpU32 length)
 }
 
 
+cmpU32 cmpHash_Combine(cmpU32 hash_a, cmpU32 hash_b)
+{
+	// A sequence of 32 uniformly random bits so that each bit of the combined hash is changed on application
+	// Derived from the golden ratio: UINT_MAX / ((1 + sqrt(5)) / 2)
+	// In reality it's just an arbitrary value which happens to work well, avoiding mapping all zeros to zeros.
+	// http://burtleburtle.net/bob/hash/doobs.html
+	static cmpU32 random_bits = 0x9E3779B9;
+	hash_a ^= hash_b + random_bits + (hash_a << 6) + (hash_a >> 2);
+	return hash_a;
+}
+
+
 
 // =====================================================================================================
 // cmpError

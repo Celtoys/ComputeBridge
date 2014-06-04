@@ -53,6 +53,12 @@ typedef int cmpS32;
 cmpU32 cmpHash(const char* str, cmpU32 length);
 
 
+//
+// Combine two hashes and return the result
+//
+cmpU32 cmpHash_Combine(cmpU32 hash_a, cmpU32 hash_b);
+
+
 
 //
 // --- cmpError ----------------------------------------------------------------------------------------

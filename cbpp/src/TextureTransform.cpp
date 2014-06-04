@@ -57,18 +57,6 @@ namespace
 	// CUDA read types
 	Keyword KEYWORD_cudaReadModeElementType("cudaReadModeElementType");
 	Keyword KEYWORD_cudaReadModeNormalizedFloat("cudaReadModeNormalizedFloat");
-
-
-	cmpU32 CombineHash(cmpU32 combined_hash, cmpU32 hash)
-	{
-		// A sequence of 32 uniformly random bits so that each bit of the combined hash is changed on application
-		// Derived from the golden ratio: UINT_MAX / ((1 + sqrt(5)) / 2)
-		// In reality it's just an arbitrary value which happens to work well, avoiding mapping all zeros to zeros.
-		// http://burtleburtle.net/bob/hash/doobs.html
-		static cmpU32 random_bits = 0x9E3779B9;
-		combined_hash ^= hash + random_bits + (combined_hash << 6) + (combined_hash >> 2);
-		return combined_hash;
-	}
 }
 
 
@@ -213,7 +201,7 @@ public:
 		}
 		ref.type_token = type_token_0;
 		ref.nb_type_tokens = 1;
-		combined_hash = CombineHash(combined_hash, type_token_0->hash);
+		combined_hash = cmpHash_Combine(combined_hash, type_token_0->hash);
 		++iterator;
 
 		// If the type name was signed/unsigned, expect the rest of the type name
@@ -232,7 +220,7 @@ public:
 			}
 
 			ref.nb_type_tokens = 2;
-			combined_hash = CombineHash(combined_hash, type_token_1->hash);
+			combined_hash = cmpHash_Combine(combined_hash, type_token_1->hash);
 			++iterator;
 		}
 
