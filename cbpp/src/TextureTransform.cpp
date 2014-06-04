@@ -41,10 +41,13 @@ namespace
 	Keyword KEYWORD_signed("signed");
 	Keyword KEYWORD_unsigned("unsigned");
 
+	// ComputeBridge macros
 	Keyword KEYWORD_cmp_kernel_fn("cmp_kernel_fn");
 	Keyword KEYWORD_cmp_texture_type("cmp_texture_type");
 	Keyword KEYWORD_cmp_kernel_texture_decl("cmp_kernel_texture_decl");
 	Keyword KEYWORD_cmp_kernel_texture_decl_comma("cmp_kernel_texture_decl_comma");
+	Keyword KEYWORD_cmp_kernel_texture_global_def("cmp_kernel_texture_global_def");
+	Keyword KEYWORD_cmp_kernel_texture_local_def("cmp_kernel_texture_local_def");
 
 	// Texture dimensions
 	Keyword KEYWORD_1("1");
@@ -67,6 +70,78 @@ namespace
 		return combined_hash;
 	}
 }
+
+
+
+//
+// Persistent pointers to text that cmpToken objects can reference. TextureType objects may be moved
+// around in memory, ruling out embedded char arrays. std::string may make small-string optimisations
+// by embedding local char arrays so that's out of the window, too.
+// Transfers ownership on copy.
+//
+struct String
+{
+	String()
+		: text(0)
+		, length(0)
+	{
+	}
+
+
+	String(const char* source, size_t length)
+		: text(0)
+		, length(length)
+	{
+		// Copy and null terminate
+		text = new char[length + 1];
+		memcpy(this->text, source, length);
+		this->text[length] = 0;
+	}
+
+
+	String(const std::string& source)
+		: text(0)
+		, length(0)
+	{
+		// Copy and null terminate
+		length = source.length();
+		text = new char[length + 1];
+		memcpy(this->text, source.c_str(), length);
+		this->text[length] = 0;
+	}
+
+
+	String(const String& rhs)
+		: text(rhs.text)
+		, length(rhs.length)
+	{
+		// Take ownership
+		rhs.text = 0;
+	}
+
+
+	~String()
+	{
+		if (text != 0)
+			delete [] text;
+	}
+
+
+	String& operator = (const String& rhs)
+	{
+		assert(text == 0);
+
+		// Take ownership
+		text = rhs.text;
+		length = rhs.length;
+		rhs.text = 0;
+		return *this;
+	}
+
+	mutable char* text;
+	size_t length;
+};
+
 
 
 //
@@ -124,6 +199,7 @@ struct TextureRef
 
 	// Only set for function parameters
 	cmpToken* name_token;
+	String name;
 };
 
 
@@ -249,6 +325,9 @@ public:
 			}
 			ref.name_token = iterator.token;
 			++iterator;
+
+			// Allocate a copy of the string for use later
+			ref.name = String(ref.name_token->start, ref.name_token->length);
 		}
 
 		// Record the texture reference
@@ -328,62 +407,10 @@ namespace
 }
 
 
-//
-// Persistent pointers to text that cmpToken objects can reference. TextureType objects may be moved
-// around in memory, ruling out embedded char arrays. std::string may make small-string optimisations
-// by embedding local char arrays so that's out of the window, too.
-// Transfers ownership on copy.
-//
-struct String
+struct TextureGlobalVar
 {
-	String()
-		: text(0)
-		, length(0)
-	{
-	}
-
-
-	String(const std::string& source)
-		: text(0)
-		, length(0)
-	{
-		// Copy and null terminate
-		length = source.length();
-		text = new char[length + 1];
-		memcpy(this->text, source.c_str(), length);
-		this->text[length] = 0;
-	}
-
-
-	String(const String& rhs)
-		: text(rhs.text)
-		, length(rhs.length)
-	{
-		// Take ownership
-		rhs.text = 0;
-	}
-
-
-	~String()
-	{
-		if (text != 0)
-			delete [] text;
-	}
-
-
-	String& operator = (const String& rhs)
-	{
-		assert(text == 0);
-
-		// Take ownership
-		text = rhs.text;
-		length = rhs.length;
-		rhs.text = 0;
-		return *this;
-	}
-
-	mutable char* text;
-	size_t length;
+	String name;
+	TokenList tokens;
 };
 
 
@@ -401,6 +428,8 @@ public:
 	{
 		// Responsibility for cleaning created tokens belongs with this object
 		m_TypeDeclTokens.DeleteAll();
+		for (size_t i = 0; i < m_GlobalVars.size(); i++)
+			m_GlobalVars[i].tokens.DeleteAll();
 	}
 
 
@@ -463,25 +492,7 @@ public:
 		if (!m_TypeDeclTokens.Add(cmpToken_SemiColon, ref.line))
 			return Failed(m_TypeDeclTokens);
 
-		// Create the containing node (to be deleted by the parse tree)
-		cmpNode* type_node;
-		m_LastError = cmpNode_CreateEmpty(&type_node);
-		if (!cmpError_OK(&m_LastError))
-			return false;
-		type_node->type = cmpNode_UserTokens;
-		type_node->first_token = m_TypeDeclTokens.first;
-		type_node->last_token = m_TypeDeclTokens.last;
-
-		// Add right before the containing parent
-		cmpNode* insert_before_node = FindContainerParent(ref.node);
-		if (insert_before_node == NULL)
-		{
-			m_LastError = cmpError_Create("Failed to find good location for type declaration");
-			return false;
-		}
-		cmpNode_AddBefore(insert_before_node, type_node);
-
-		return true;
+		return AddNodeBeforeContainerParent(m_TypeDeclTokens, ref.node);
 	}
 
 
@@ -502,7 +513,19 @@ public:
 			TokenIterator i(*container_parent);
 			i.SkipWhitespace();
 			if (i.token != NULL && i.token->hash == KEYWORD_cmp_kernel_fn.hash)
-				return ReplaceKernelParameter(ref, container_parent);
+			{
+				// Declarations/definitions require kernel parameter replacement
+				if (!ReplaceKernelParameter(ref, container_parent))
+					return false;
+
+				if (container_parent->type == cmpNode_FunctionDefn)
+				{
+					if (!AddKernelGlobalTextureDef(ref, container_parent))
+						return false;
+				}
+
+				return true;
+			}
 		}
 
 		// Create the single replacement token
@@ -518,6 +541,72 @@ public:
 		token->next = old_tokens.last->next;
 		token->next->prev = token;
 		old_tokens.DeleteAll();
+
+		return true;
+	}
+
+
+	cmpU32 TextureRefsKey() const
+	{
+		return m_TextureRefsKey;
+	}
+
+
+	cmpError LastError() const
+	{
+		return m_LastError;
+	}
+
+
+private:
+	// Non-copyable
+	TextureType(const TextureType&);
+	TextureType& operator = (const TextureType&);
+
+
+	bool Failed(const TokenList& list)
+	{
+		// Record error for future inspection
+		m_LastError = list.error;
+		return false;
+	}
+
+
+	cmpNode* FindContainerParent(cmpNode* node)
+	{
+		// Typedefs are already a parent
+		if (node->type == cmpNode_Typedef)
+			return node;
+
+		// Search up for a function definition/declaration
+		while (node != 0 &&
+			   node->type != cmpNode_FunctionDefn &&
+			   node->type != cmpNode_FunctionDecl)
+			node = node->parent;
+
+		return node;
+	}
+
+
+	bool AddNodeBeforeContainerParent(const TokenList& tokens, cmpNode* child_node)
+	{
+		// Create the containing node (to be deleted by the parse tree)
+		cmpNode* node;
+		m_LastError = cmpNode_CreateEmpty(&node);
+		if (!cmpError_OK(&m_LastError))
+			return false;
+		node->type = cmpNode_UserTokens;
+		node->first_token = tokens.first;
+		node->last_token = tokens.last;
+
+		// Add right before the containing parent
+		cmpNode* insert_before_node = FindContainerParent(child_node);
+		if (insert_before_node == NULL)
+		{
+			m_LastError = cmpError_Create("Failed to find good location for global texture definition");
+			return false;
+		}
+		cmpNode_AddBefore(insert_before_node, node);
 
 		return true;
 	}
@@ -565,7 +654,7 @@ public:
 			return Failed(new_tokens);
 
 		// Finish with the parameter name
-		if (new_tokens.Add(cmpToken_Symbol, name_token->start, name_token->length, line) == 0)
+		if (new_tokens.Add(cmpToken_Symbol, ref.name_token->start, ref.name_token->length, line) == 0)
 			return Failed(new_tokens);
 		if (new_tokens.Add(cmpToken_RBracket, line) == 0)
 			return Failed(new_tokens);
@@ -584,40 +673,43 @@ public:
 	}
 
 
-	cmpU32 TextureRefsKey() const
+	bool AddKernelGlobalTextureDef(const TextureRef& ref, cmpNode* function_node)
 	{
-		return m_TextureRefsKey;
-	}
+		TextureGlobalVar var;
 
+		// Start the token list
+		cmpU32 line = function_node->first_token->line;
+		if (AddToken(var.tokens, KEYWORD_cmp_kernel_texture_global_def, line) == 0)
+			return Failed(var.tokens);
+		if (var.tokens.Add(cmpToken_LBracket, line) == 0)
+			return Failed(var.tokens);
+		if (var.tokens.Add(cmpToken_Symbol, m_Name.text, m_Name.length, line) == 0)
+			return Failed(var.tokens);
+		if (var.tokens.Add(cmpToken_Comma, line) == 0)
+			return Failed(var.tokens);
 
-	cmpError LastError() const
-	{
-		return m_LastError;
-	}
+		// Locate the name of the function
+		cmpToken* function_name_token = function_node->last_token;
+		while (function_name_token->type != cmpToken_Symbol)
+			function_name_token = function_name_token->prev;
 
+		// Finish off with a unique name for variable
+		char texture_var[64];
+		sprintf(texture_var, "__TextureVar_%.*s_%s__", function_name_token->length, function_name_token->start, ref.name.text);
+		var.name = String(texture_var);
+		if (var.tokens.Add(cmpToken_Symbol, var.name.text, var.name.length, line) == 0)
+			return Failed(var.tokens);
+		if (var.tokens.Add(cmpToken_RBracket, line) == 0)
+			return Failed(var.tokens);
+		if (var.tokens.Add(cmpToken_SemiColon, line) == 0)
+			return Failed(var.tokens);
 
-private:
-	bool Failed(const TokenList& list)
-	{
-		// Record error for future inspection
-		m_LastError = list.error;
-		return false;
-	}
+		if (!AddNodeBeforeContainerParent(var.tokens, ref.node))
+			return false;
 
+		m_GlobalVars.push_back(var);
 
-	cmpNode* FindContainerParent(cmpNode* node)
-	{
-		// Typedefs are already a parent
-		if (node->type == cmpNode_Typedef)
-			return node;
-
-		// Search up for a function definition/declaration
-		while (node != 0 &&
-			   node->type != cmpNode_FunctionDefn &&
-			   node->type != cmpNode_FunctionDecl)
-			node = node->parent;
-
-		return node;
+		return true;
 	}
 
 
@@ -629,6 +721,8 @@ private:
 
 	// Tokens created for the unique typedef
 	TokenList m_TypeDeclTokens;
+
+	std::vector<TextureGlobalVar> m_GlobalVars;
 
 	cmpError m_LastError;
 };
@@ -660,11 +754,15 @@ private:
 
 			// Generate a texture type from the first instance of this texture reference
 			const TextureRef& first_ref = FindFirstTextureRef(refs);
-			TextureType texture_type(i->first);
+			TextureType* texture_type = new TextureType(i->first);
 
 			// Place a type declaration somewhere before the first node
-			if (!texture_type.AddTypeDeclaration(first_ref, m_UniqueTypeIndex++))
-				return texture_type.LastError();
+			if (!texture_type->AddTypeDeclaration(first_ref, m_UniqueTypeIndex++))
+			{
+				cmpError error = texture_type->LastError();
+				delete texture_type;
+				return error;
+			}
 
 			m_TextureTypes.push_back(texture_type);
 		}
@@ -672,7 +770,7 @@ private:
 		// Replace the type of all texture references with the newly generated unique ones
 		for (size_t i = 0; i < m_TextureTypes.size(); i++)
 		{
-			TextureType& texture_type = m_TextureTypes[i];
+			TextureType& texture_type = *m_TextureTypes[i];
 			const TextureRefs& refs = refs_map.find(texture_type.TextureRefsKey())->second;
 
 			for (size_t j = 0; j < refs.size(); j++)
@@ -688,7 +786,7 @@ private:
 	// Used to generate unique type names for texture references
 	int m_UniqueTypeIndex;
 
-	std::vector<TextureType> m_TextureTypes;
+	std::vector<TextureType*> m_TextureTypes;
 };
 
 
