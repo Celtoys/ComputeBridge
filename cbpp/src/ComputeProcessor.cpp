@@ -299,6 +299,68 @@ TokenIterator& TokenIterator::operator ++ ()
 }
 
 
+String::String()
+	: text(0)
+	, length(0)
+{
+}
+
+
+String::String(const char *source, size_t src_length)
+	: text(0)
+	, length(0)
+{
+	Set(source, src_length);
+}
+
+
+String::String(const std::string& source)
+	: text(0)
+	, length(0)
+{
+	Set(source.c_str(), source.length());
+}
+
+
+String::String(const String& rhs)
+	: text(rhs.text)
+	, length(rhs.length)
+{
+	// Take ownership
+	rhs.text = 0;
+}
+
+
+String::~String()
+{
+	if (text != 0)
+		delete [] text;	
+}
+
+
+void String::Set(const char *source, size_t src_length)
+{
+	// Copy and null terminate
+	assert(text == 0);
+	length = src_length;
+	text = new char[length + 1];
+	memcpy(text, source, length);
+	text[length] = 0;
+}
+
+
+String& String::operator = (const String& rhs)
+{
+	// Take ownership
+	assert(text == 0);
+	text = rhs.text;
+	length = rhs.length;
+	rhs.text = 0;
+	return *this;
+}
+
+
+
 TransformDescBase::TransformDescBase(NewFunc new_func, DeleteFunc delete_func)
 	: new_func(new_func)
 	, delete_func(delete_func)

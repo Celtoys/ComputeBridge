@@ -131,6 +131,30 @@ struct TokenIterator
 
 
 //
+// Persistent pointers to text that cmpToken objects can reference. TextureType objects may be moved
+// around in memory, ruling out embedded char arrays. std::string may make small-string optimisations
+// by embedding local char arrays so that's out of the window, too.
+// Transfers ownership on copy.
+//
+struct String
+{
+	String();
+	String(const char* source, size_t src_length);
+	String(const std::string& source);
+	String(const String& rhs);
+	~String();
+
+	void Set(const char* source, size_t src_length);
+
+	String& operator = (const String& rhs);
+
+	mutable char* text;
+	size_t length;
+};
+
+
+
+//
 // Checks a token field specified by the template parameters to see if it is equal to any one of the
 // constructor-initialised values.
 //
