@@ -150,8 +150,9 @@ typedef std::map<cmpU32, TextureRefs> TextureRefsMap;
 class FindTextureRefs : public INodeVisitor
 {
 public:
-	FindTextureRefs()
-		: m_LastError(cmpError_CreateOK())
+	FindTextureRefs(TextureRefsMap& refs_map)
+		: m_TextureRefsMap(refs_map)
+		, m_LastError(cmpError_CreateOK())
 	{
 		m_TextureMatches = MatchHashes(
 			KEYWORD_Texture3Dn.hash,
@@ -265,12 +266,6 @@ public:
 	}
 
 
-	const TextureRefsMap& Results() const
-	{
-		return m_TextureRefsMap;
-	}
-
-
 	const cmpError& LastError() const
 	{
 		return m_LastError;
@@ -281,7 +276,7 @@ private:
 	MatchHashes m_TextureMatches;
 	MatchHashes m_TypeMatches;
 
-	TextureRefsMap m_TextureRefsMap;
+	TextureRefsMap& m_TextureRefsMap;
 
 	cmpError m_LastError;
 };
@@ -447,9 +442,12 @@ public:
 				if (!ReplaceKernelParameter(ref, container_parent))
 					return false;
 
+				// Definitions require a global variable and assignment to the variable
 				if (container_parent->type == cmpNode_FunctionDefn)
 				{
 					if (!AddKernelGlobalTextureDef(ref, container_parent))
+						return false;
+					if (!AddKernelLocalTextureDef(ref, container_parent))
 						return false;
 				}
 
@@ -583,7 +581,7 @@ private:
 			return Failed(new_tokens);
 
 		// Finish with the parameter name
-		if (new_tokens.Add(cmpToken_Symbol, ref.name_token->start, ref.name_token->length, line) == 0)
+		if (new_tokens.Add(cmpToken_Symbol, ref.name.text, ref.name.length, line) == 0)
 			return Failed(new_tokens);
 		if (new_tokens.Add(cmpToken_RBracket, line) == 0)
 			return Failed(new_tokens);
@@ -642,6 +640,51 @@ private:
 	}
 
 
+	bool AddKernelLocalTextureDef(const TextureRef& ref, cmpNode* function_node)
+	{
+		// Search for the function's statement block, which should be there as verified by earlier checks
+		cmpNode* block_node = function_node->first_child;
+		while (block_node != NULL && block_node->type != cmpNode_StatementBlock)
+			block_node = block_node->next_sibling;
+		assert(block_node != NULL);
+
+		const TextureGlobalVar& var = m_GlobalVars.back();
+
+		// Build tokens for the definition
+		TokenList tokens;
+		cmpU32 line = function_node->first_token->line;
+		if (AddToken(tokens, KEYWORD_cmp_kernel_texture_local_def, line) == 0)
+			return Failed(tokens);
+		if (tokens.Add(cmpToken_LBracket, line) == 0)
+			return Failed(tokens);
+		if (tokens.Add(cmpToken_Symbol, m_Name.text, m_Name.length, line) == 0)
+			return Failed(tokens);
+		if (tokens.Add(cmpToken_Comma, line) == 0)
+			return Failed(tokens);
+		if (tokens.Add(cmpToken_Symbol, ref.name.text, ref.name.length, line) == 0)
+			return Failed(tokens);
+		if (tokens.Add(cmpToken_Comma, line) == 0)
+			return Failed(tokens);
+		if (tokens.Add(cmpToken_Symbol, var.name.text, var.name.length, line) == 0)
+			return Failed(tokens);
+		if (tokens.Add(cmpToken_RBracket, line) == 0)
+			return Failed(tokens);
+		if (tokens.Add(cmpToken_SemiColon, line) == 0)
+			return Failed(tokens);
+
+		// Place just after the brace
+		cmpToken* brace_token = block_node->first_token;
+		assert(brace_token->type == cmpToken_LBrace);
+		brace_token->next->prev = tokens.last;
+		tokens.last->next = brace_token->next;
+		brace_token->next = tokens.first;
+		tokens.first->prev = brace_token;
+		block_node->last_token = tokens.last;
+
+		return true;
+	}
+
+
 	// Key used to lookup texture refs that use this type
 	cmpU32 m_TextureRefsKey;
 
@@ -665,19 +708,24 @@ public:
 	{
 	}
 
+	~TextureTransform()
+	{
+		for (size_t i = 0; i < m_TextureTypes.size(); i++)
+			delete m_TextureTypes[i];
+	}
+
 private:
 	cmpError Apply(ComputeProcessor& processor)
 	{
 		// Find all texture references
-		FindTextureRefs ftr;
+		FindTextureRefs ftr(m_TextureRefsMap);
 		if (!processor.VisitNodes(&ftr))
 			return ftr.LastError();
-		const TextureRefsMap& refs_map = ftr.Results();
-		if (refs_map.size() == 0)
+		if (m_TextureRefsMap.size() == 0)
 			return cmpError_CreateOK();
 
 		// Build a list of all unique texture types introduced
-		for (TextureRefsMap::const_iterator i = refs_map.begin(); i != refs_map.end(); ++i)
+		for (TextureRefsMap::const_iterator i = m_TextureRefsMap.begin(); i != m_TextureRefsMap.end(); ++i)
 		{
 			const TextureRefs& refs = i->second;
 
@@ -700,7 +748,7 @@ private:
 		for (size_t i = 0; i < m_TextureTypes.size(); i++)
 		{
 			TextureType& texture_type = *m_TextureTypes[i];
-			const TextureRefs& refs = refs_map.find(texture_type.TextureRefsKey())->second;
+			const TextureRefs& refs = m_TextureRefsMap.find(texture_type.TextureRefsKey())->second;
 
 			for (size_t j = 0; j < refs.size(); j++)
 			{
@@ -714,6 +762,8 @@ private:
 
 	// Used to generate unique type names for texture references
 	int m_UniqueTypeIndex;
+
+	TextureRefsMap m_TextureRefsMap;
 
 	std::vector<TextureType*> m_TextureTypes;
 };
