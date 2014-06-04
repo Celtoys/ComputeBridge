@@ -314,6 +314,16 @@ namespace
 		assert(kw_dimensions != 0);
 		return kw_dimensions;
 	}
+
+
+	cmpToken* AddToken(TokenList& tokens, const Keyword& keyword, cmpU32 line)
+	{
+		// Create a symbol token using globally persistent keyword text
+		cmpToken* token = tokens.Add(cmpToken_Symbol, keyword.text, keyword.length, line);
+		if (token != 0)
+			token->hash = keyword.hash;
+		return token;
+	}
 }
 
 
@@ -376,67 +386,6 @@ struct String
 };
 
 
-//
-// Token list wrapper that stores the first/last tokens in a list
-//
-struct cmpTokenList
-{
-	cmpTokenList()
-		: first_token(0)
-		, last_token(0)
-		, last_error(cmpError_CreateOK())
-	{
-	}
-
-
-	cmpTokenList(cmpToken* first_token, cmpToken* last_token)
-		: first_token(first_token)
-		, last_token(last_token)
-		, last_error(cmpError_CreateOK())
-	{
-	}
-
-
-	cmpToken* Add(enum cmpTokenType type, const char* start, cmpU32 length, cmpU32 line)
-	{
-		cmpToken* token;
-		last_error = cmpToken_Create(&token, type, start, length, line);
-		if (!cmpError_OK(&last_error))
-			return 0;
-		cmpToken_AddToList(&first_token, &last_token, token);
-		return token;
-	}
-
-
-	cmpToken* Add(const Keyword& keyword, cmpU32 line)
-	{
-		// Create a symbol token using globally persistent keyword text
-		cmpToken* token = Add(cmpToken_Symbol, keyword.text, keyword.length, line);
-		if (token != 0)
-			token->hash = keyword.hash;
-		return token;
-	}
-
-
-	void DeleteAll()
-	{
-		// Move one beyond last for while comparison delete to be inclusive
-		last_token = last_token->next;
-		while (first_token != last_token)
-		{
-			cmpToken* next = first_token->next;
-			cmpToken_Destroy(first_token);
-			first_token = next;
-		}
-	}
-
-
-	cmpToken* first_token;
-	cmpToken* last_token;
-	cmpError last_error;
-};
-
-
 class TextureType
 {
 public:
@@ -457,7 +406,7 @@ public:
 	bool AddTypeDeclaration(const TextureRef& ref, int unique_index)
 	{
 		// Start off the macro call
-		if (!m_TypeDeclTokens.Add(KEYWORD_cmp_texture_type, ref.line))
+		if (!AddToken(m_TypeDeclTokens, KEYWORD_cmp_texture_type, ref.line))
 			return Failed(m_TypeDeclTokens);
 		if (!m_TypeDeclTokens.Add(cmpToken_LBracket, "(", 1, ref.line))
 			return Failed(m_TypeDeclTokens);
@@ -489,12 +438,12 @@ public:
 		char read_type = ref.ReadType();
 		if (read_type == 'u')
 		{
-			if (!m_TypeDeclTokens.Add(KEYWORD_cudaReadModeElementType, ref.line))
+			if (!AddToken(m_TypeDeclTokens, KEYWORD_cudaReadModeElementType, ref.line))
 				return Failed(m_TypeDeclTokens);
 		}
 		else
 		{
-			if (!m_TypeDeclTokens.Add(KEYWORD_cudaReadModeNormalizedFloat, ref.line))
+			if (!AddToken(m_TypeDeclTokens, KEYWORD_cudaReadModeNormalizedFloat, ref.line))
 				return Failed(m_TypeDeclTokens);
 		}
 		if (!m_TypeDeclTokens.Add(cmpToken_Comma, ",", 1, ref.line))
@@ -519,8 +468,8 @@ public:
 		if (!cmpError_OK(&m_LastError))
 			return false;
 		type_node->type = cmpNode_UserTokens;
-		type_node->first_token = m_TypeDeclTokens.first_token;
-		type_node->last_token = m_TypeDeclTokens.last_token;
+		type_node->first_token = m_TypeDeclTokens.first;
+		type_node->last_token = m_TypeDeclTokens.last;
 
 		// Add right before the containing parent
 		cmpNode* insert_before_node = FindContainerParent(ref.node);
@@ -562,10 +511,10 @@ public:
 			return false;
 
 		// Cut out the original tokens and replace with the new one
-		cmpTokenList old_tokens(ref.keyword_token, ref.end_of_type_token);
-		token->prev = old_tokens.first_token->prev;
+		TokenList old_tokens(ref.keyword_token, ref.end_of_type_token);
+		token->prev = old_tokens.first->prev;
 		token->prev->next = token;
-		token->next = old_tokens.last_token->next;
+		token->next = old_tokens.last->next;
 		token->next->prev = token;
 		old_tokens.DeleteAll();
 
@@ -580,28 +529,28 @@ public:
 		assert(name_token != 0);
 
 		// Seek to the next parameter separator or the end of the parameters
-		cmpTokenList old_tokens(ref.keyword_token, ref.name_token);
-		while (old_tokens.last_token != 0 &&
-			   old_tokens.last_token->type != cmpToken_Comma &&
-			   old_tokens.last_token->type != cmpToken_RBracket)
-			old_tokens.last_token = old_tokens.last_token->next;
-		assert(old_tokens.last_token != 0);
+		TokenList old_tokens(ref.keyword_token, ref.name_token);
+		while (old_tokens.last != 0 &&
+			   old_tokens.last->type != cmpToken_Comma &&
+			   old_tokens.last->type != cmpToken_RBracket)
+			old_tokens.last = old_tokens.last->next;
+		assert(old_tokens.last != 0);
 
 		// Middle parameters replace parameter and comma
 		// End parameters replace just the parameter
 		const Keyword* keyword = &KEYWORD_cmp_kernel_texture_decl_comma;
-		if (old_tokens.last_token->type == cmpToken_RBracket)
+		if (old_tokens.last->type == cmpToken_RBracket)
 		{
 			keyword = &KEYWORD_cmp_kernel_texture_decl;
-			old_tokens.last_token = ref.name_token;
+			old_tokens.last = ref.name_token;
 		}
 
 		// All token replacement happens on the same line 
 		cmpU32 line = ref.name_token->line;
 
 		// Start of the replacement tokens
-		cmpTokenList new_tokens;
-		if (new_tokens.Add(*keyword, line) == 0)
+		TokenList new_tokens;
+		if (AddToken(new_tokens, *keyword, line) == 0)
 			return Failed(new_tokens);
 		if (new_tokens.Add(cmpToken_LBracket, "(", 1, line) == 0)
 			return Failed(new_tokens);
@@ -621,10 +570,10 @@ public:
 			return Failed(new_tokens);
 
 		// Replace the old tokens with the new ones
-		old_tokens.first_token->prev->next = new_tokens.first_token;
-		new_tokens.first_token->prev = old_tokens.first_token->prev;
-		old_tokens.last_token->next->prev = new_tokens.last_token;
-		new_tokens.last_token->next = old_tokens.last_token->next;
+		old_tokens.first->prev->next = new_tokens.first;
+		new_tokens.first->prev = old_tokens.first->prev;
+		old_tokens.last->next->prev = new_tokens.last;
+		new_tokens.last->next = old_tokens.last->next;
 
 		// As the new tokens are being placed in the main token list, they'll get cleaned up safely
 		// What remains is to clean the old tokens that were pulled out
@@ -647,10 +596,10 @@ public:
 
 
 private:
-	bool Failed(const cmpTokenList& list)
+	bool Failed(const TokenList& list)
 	{
 		// Record error for future inspection
-		m_LastError = list.last_error;
+		m_LastError = list.error;
 		return false;
 	}
 
@@ -678,7 +627,7 @@ private:
 	String m_Name;
 
 	// Tokens created for the unique typedef
-	cmpTokenList m_TypeDeclTokens;
+	TokenList m_TypeDeclTokens;
 
 	cmpError m_LastError;
 };

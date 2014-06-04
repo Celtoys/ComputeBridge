@@ -22,6 +22,26 @@ struct INodeVisitor
 };
 
 
+//
+// Token list wrapper that stores the first/last tokens in a list
+//
+struct TokenList
+{
+	TokenList();
+	TokenList(cmpToken* first_token, cmpToken* last_token);
+
+	cmpToken* Add(cmpToken* token);
+	cmpToken* Add(enum cmpTokenType type, const char* start, cmpU32 length, cmpU32 line);
+
+	void DeleteAll();
+
+	cmpToken* first;
+	cmpToken* last;
+	cmpError error;
+};
+
+
+
 class ComputeProcessor
 {
 public:
@@ -44,8 +64,7 @@ private:
 	cmpParserCursor* m_ParserCursor;
 
 	// Linked list of tokens
-	cmpToken* m_FirstToken;
-	cmpToken* m_LastToken;
+	TokenList m_Tokens;
 
 	// Abstract syntax tree
 	cmpNode* m_RootNode;

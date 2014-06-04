@@ -8,12 +8,59 @@
 static std::vector<TransformDescBase*> g_TransformDescs;
 
 
+TokenList::TokenList()
+	: first(0)
+	, last(0)
+	, error(cmpError_CreateOK())
+{
+}
+
+
+TokenList::TokenList(cmpToken* first_token, cmpToken* last_token)
+	: first(first_token)
+	, last(last_token)
+	, error(cmpError_CreateOK())
+{
+}
+
+
+cmpToken* TokenList::Add(cmpToken *token)
+{
+	cmpToken_AddToList(&first, &last, token);
+	return token;
+}
+
+
+cmpToken* TokenList::Add(enum cmpTokenType type, const char* start, cmpU32 length, cmpU32 line)
+{
+	cmpToken* token;
+	error = cmpToken_Create(&token, type, start, length, line);
+	if (!cmpError_OK(&error))
+		return 0;
+	return Add(token);
+}
+
+
+void TokenList::DeleteAll()
+{
+	// Move one beyond last for while comparison delete to be inclusive
+	last = last->next;
+	while (first != last)
+	{
+		cmpToken* next = first->next;
+		cmpToken_Destroy(first);
+		first = next;
+	}
+
+	first = 0;
+	last = 0;
+}
+
+
 ComputeProcessor::ComputeProcessor()
 	: m_MemoryFile(0)
 	, m_LexerCursor(0)
 	, m_ParserCursor(0)
-	, m_FirstToken(0)
-	, m_LastToken(0)
 	, m_RootNode(0)
 {
 }
@@ -31,12 +78,7 @@ ComputeProcessor::~ComputeProcessor()
 	}
 
 	// Destroy all tokens
-	while (m_FirstToken != 0)
-	{
-		cmpToken* next = m_FirstToken->next;
-		cmpToken_Destroy(m_FirstToken);
-		m_FirstToken = next;
-	}
+	m_Tokens.DeleteAll();
 
 	// Destroy all nodes
 	if (m_RootNode != 0)
@@ -74,7 +116,7 @@ bool ComputeProcessor::ParseFile(const char* filename, bool verbose)
 	}
 	while (cmpToken* token = cmpLexer_ConsumeToken(m_LexerCursor))
 	{
-		cmpToken_AddToList(&m_FirstToken, &m_LastToken, token);
+		m_Tokens.Add(token);
 		if (verbose)
 			printf("[0x%2x] %s %d\n", token->type, cmpTokenType_Name(token->type), token->length);
 	}
@@ -94,7 +136,7 @@ bool ComputeProcessor::ParseFile(const char* filename, bool verbose)
 	}
 
 	// Build a list of parser nodes
-	if (cmpError error = cmpParserCursor_Create(&m_ParserCursor, m_FirstToken))
+	if (cmpError error = cmpParserCursor_Create(&m_ParserCursor, m_Tokens.first))
 	{
 		printf("Error creating parser cursor: %s\n\n", cmpError_Text(&error));
 		return false;
