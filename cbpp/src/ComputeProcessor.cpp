@@ -41,10 +41,55 @@ cmpToken* TokenList::Add(enum cmpTokenType type, const char* start, cmpU32 lengt
 }
 
 
+cmpToken* TokenList::Add(enum cmpTokenType type, cmpU32 line)
+{
+	// Ensure this is a single character token
+	assert(type != cmpToken_None);
+	assert(type < cmpToken_InvalidSeparator);
+
+	// Construnct a single character string out of its character code
+	const char* text;
+	switch (type)
+	{
+		case cmpToken_LBrace: text = "{"; break;
+		case cmpToken_RBrace: text = "}"; break;
+		case cmpToken_Comma: text = ","; break;
+		case cmpToken_LBracket: text = "("; break;
+		case cmpToken_RBracket: text = ")"; break;
+		case cmpToken_LSqBracket: text = "["; break;
+		case cmpToken_RSqBracket: text = "]"; break;
+		case cmpToken_Colon: text = ":"; break;
+		case cmpToken_SemiColon: text = ";"; break;
+		case cmpToken_Period: text = "."; break;
+		case cmpToken_Question: text = "?"; break;
+		case cmpToken_Tilde: text = "~"; break;
+		case cmpToken_LAngle: text = "<"; break;
+		case cmpToken_RAngle: text = ">"; break;
+		case cmpToken_Plus: text = "+"; break;
+		case cmpToken_Minus: text = "-"; break;
+		case cmpToken_Asterisk: text = "*"; break;
+		case cmpToken_Divide: text = "/"; break;
+		case cmpToken_Modulo: text = "%%"; break;
+		case cmpToken_Equals: text = "="; break;
+		case cmpToken_And: text = "&"; break;
+		case cmpToken_Or: text = "|"; break;
+		case cmpToken_Xor: text = "^"; break;
+		case cmpToken_Not: text = "!"; break;
+		case cmpToken_Hash: text = "#"; break;
+		default:
+			assert(false);
+	}
+
+	return Add(type, text, 1, line);
+}
+
+
 void TokenList::DeleteAll()
 {
 	// Move one beyond last for while comparison delete to be inclusive
-	last = last->next;
+	if (last != 0)
+		last = last->next;
+
 	while (first != last)
 	{
 		cmpToken* next = first->next;

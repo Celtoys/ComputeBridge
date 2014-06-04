@@ -23,6 +23,7 @@ namespace
 		cmpU32 hash;
 	};
 
+
 	// Texture types
 	Keyword KEYWORD_Texture3Du("Texture3Du");
 	Keyword KEYWORD_Texture3Dn("Texture3Dn");
@@ -408,7 +409,7 @@ public:
 		// Start off the macro call
 		if (!AddToken(m_TypeDeclTokens, KEYWORD_cmp_texture_type, ref.line))
 			return Failed(m_TypeDeclTokens);
-		if (!m_TypeDeclTokens.Add(cmpToken_LBracket, "(", 1, ref.line))
+		if (!m_TypeDeclTokens.Add(cmpToken_LBracket, ref.line))
 			return Failed(m_TypeDeclTokens);
 
 		// Add the texel type name tokens
@@ -423,7 +424,7 @@ public:
 			if (!m_TypeDeclTokens.Add(cmpToken_Symbol, type_token->start, type_token->length, ref.line))
 				return Failed(m_TypeDeclTokens);
 		}
-		if (!m_TypeDeclTokens.Add(cmpToken_Comma, ",", 1, ref.line))
+		if (!m_TypeDeclTokens.Add(cmpToken_Comma, ref.line))
 			return Failed(m_TypeDeclTokens);
 
 		// Add the texture dimension token
@@ -431,7 +432,7 @@ public:
 		const Keyword* kw_dimensions = GetDimensionsKeyword(dimensions);
 		if (!m_TypeDeclTokens.Add(cmpToken_Number, kw_dimensions->text, kw_dimensions->length, ref.line))
 			return Failed(m_TypeDeclTokens);
-		if (!m_TypeDeclTokens.Add(cmpToken_Comma, ",", 1, ref.line))
+		if (!m_TypeDeclTokens.Add(cmpToken_Comma, ref.line))
 			return Failed(m_TypeDeclTokens);
 
 		// Add read type token
@@ -446,7 +447,7 @@ public:
 			if (!AddToken(m_TypeDeclTokens, KEYWORD_cudaReadModeNormalizedFloat, ref.line))
 				return Failed(m_TypeDeclTokens);
 		}
-		if (!m_TypeDeclTokens.Add(cmpToken_Comma, ",", 1, ref.line))
+		if (!m_TypeDeclTokens.Add(cmpToken_Comma, ref.line))
 			return Failed(m_TypeDeclTokens);
 
 		// Generate a unique type name and add as a symbol token
@@ -457,9 +458,9 @@ public:
 			return Failed(m_TypeDeclTokens);
 
 		// Close the statement
-		if (!m_TypeDeclTokens.Add(cmpToken_RBracket, ")", 1, ref.line))
+		if (!m_TypeDeclTokens.Add(cmpToken_RBracket, ref.line))
 			return Failed(m_TypeDeclTokens);
-		if (!m_TypeDeclTokens.Add(cmpToken_SemiColon, ";", 1, ref.line))
+		if (!m_TypeDeclTokens.Add(cmpToken_SemiColon, ref.line))
 			return Failed(m_TypeDeclTokens);
 
 		// Create the containing node (to be deleted by the parse tree)
@@ -552,7 +553,7 @@ public:
 		TokenList new_tokens;
 		if (AddToken(new_tokens, *keyword, line) == 0)
 			return Failed(new_tokens);
-		if (new_tokens.Add(cmpToken_LBracket, "(", 1, line) == 0)
+		if (new_tokens.Add(cmpToken_LBracket, line) == 0)
 			return Failed(new_tokens);
 
 		// Add texture dimensions
@@ -560,13 +561,13 @@ public:
 		const Keyword* kw_dimensions = GetDimensionsKeyword(dimensions);
 		if (new_tokens.Add(cmpToken_Number, kw_dimensions->text, kw_dimensions->length, line) == 0)
 			return Failed(new_tokens);
-		if (new_tokens.Add(cmpToken_Comma, ",", 1, line) == 0)
+		if (new_tokens.Add(cmpToken_Comma, line) == 0)
 			return Failed(new_tokens);
 
 		// Finish with the parameter name
 		if (new_tokens.Add(cmpToken_Symbol, name_token->start, name_token->length, line) == 0)
 			return Failed(new_tokens);
-		if (new_tokens.Add(cmpToken_RBracket, ")", 1, line) == 0)
+		if (new_tokens.Add(cmpToken_RBracket, line) == 0)
 			return Failed(new_tokens);
 
 		// Replace the old tokens with the new ones
