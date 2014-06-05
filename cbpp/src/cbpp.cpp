@@ -1,4 +1,3 @@
-
 //
 // Copyright 2014 Celtoys Ltd
 //
@@ -18,20 +17,11 @@
 #include "ComputeProcessor.h"
 
 #include <string>
+#include <map>
+#include <assert.h>
 
 #include "../../lib/ComputeParser.h"
 
-
-// stdout configuration
-bool g_PrintHeader = true;
-bool g_PrintHelp = false;
-bool g_Verbose = false;
-
-std::string g_InputFilename;
-std::string g_OutputFilename;
-
-
-#define LOG if (g_Verbose) printf
 
 #ifndef _MSC_VER
 #include <cstring>
@@ -40,51 +30,68 @@ std::string g_OutputFilename;
 #define strcmpi strcasecmp
 #endif
 
-const char* ParseArguments(int argc, const char* argv[])
+
+class Arguments
 {
-	int i;
-
-	for (i = 1; i < argc; i++)
+public:
+	Arguments(int argc, const char* argv[])
 	{
-		const char* arg = argv[i];
-
-		// Is this an option?
-		if (arg[0] == '-')
-		{
-			if (!strcmpi(arg, "-h"))
-			{
-				g_PrintHelp = true;
-			}
-
-			else if (!strcmpi(arg, "-noheader"))
-			{
-				g_PrintHeader = false;
-			}
-
-			else if (!strcmpi(arg, "-verbose"))
-			{
-				g_Verbose = true;
-			}
-
-			else if (!strcmpi(arg, "-output") && i < argc - 1)
-			{
-				g_OutputFilename = argv[i + 1];
-				i++;
-			}
-		}
-
-		else
-		{
-			// Must be a filename
-			g_InputFilename = arg;
-		}
+		// Copy from the command-line into local storage
+		m_Arguments.resize(argc);
+		for (size_t i = 0; i < m_Arguments.size(); i++)
+			m_Arguments[i] = argv[i];
 	}
 
-	if (g_InputFilename[0] == 0)
-		return "No input filename specified";
 
-	return 0;
-}
+	size_t GetIndexOf(const std::string& arg, int occurrence = 0) const
+	{
+		// Linear search for a matching argument
+		int found = 0;
+		for (size_t i = 0; i < m_Arguments.size(); i++)
+		{
+			if (m_Arguments[i] == arg)
+			{
+				if (found++ == occurrence)
+					return i;
+			}
+		}
+
+		return -1;
+	}
+
+
+	bool Have(const std::string& arg) const
+	{
+		// Does the specific argument exist?
+		return GetIndexOf(arg) != -1;
+	}
+
+
+	std::string GetProperty(const std::string& arg, int occurrence = 0) const
+	{
+		// Does the arg exist and does it have a value
+		size_t index = GetIndexOf(arg, occurrence);
+		if (index == -1 || index + 1 >= m_Arguments.size())
+			return "";
+
+		return m_Arguments[index + 1];
+	}
+
+
+	size_t Count() const
+	{
+		return m_Arguments.size();
+	}
+
+
+	const std::string& operator [] (int index) const
+	{
+		return m_Arguments[index];
+	}
+
+private:
+	std::vector<std::string> m_Arguments;
+};
 
 
 void PrintHeader()
@@ -96,14 +103,16 @@ void PrintHeader()
 
 void PrintUsage()
 {
-	printf("Usage: cbpp [options] filename\n");
+	printf("Usage: cbpp filename [options]\n");
+}
 
-	if (g_PrintHelp)
-	{
-		printf("\nOptions are:\n\n");
-		printf("   -noheader          Supress header\n");
-		printf("   -verbose           Print logs detailing what cbpp is doing behind the scenes\n");
-	}
+
+void PrintHelp()
+{
+	PrintUsage();
+	printf("\nOptions are:\n\n");
+	printf("   -noheader          Supress header\n");
+	printf("   -verbose           Print logs detailing what cbpp is doing behind the scenes\n");
 }
 
 
@@ -146,37 +155,52 @@ struct EmitFile : public INodeVisitor
 
 int main(int argc, const char* argv[])
 {
-	// Attempt to parse arguments
-	if (const char* error = ParseArguments(argc, argv))
+	// Build arguments object, expecting a filename
+	Arguments args(argc, argv);
+	if (args.Count() < 2)
 	{
 		PrintHeader();
-		printf("\nError parsing arguments: %s\n\n", error);
 		PrintUsage();
+		printf("\nERROR: Not enough arguments, must be at least the input filename\n");
+		return 1;
+	}
+	std::string filename = args[1];
+
+	// Exit immediately on help request
+	if (args.Have("-h"))
+	{
+		PrintHeader();
+		PrintHelp();
+		return 0;
+	}
+
+	// Grab the output filename
+	std::string output_filename = args.GetProperty("-output");
+	if (output_filename == "")
+	{
+		PrintHeader();
+		PrintUsage();
+		printf("\nERROR: No output filename specified");
 		return 1;
 	}
 
-	// Print program information
-	if (g_PrintHeader)
+	// Suppress header?
+	if (!args.Have("-noheader"))
 		PrintHeader();
-	if (g_PrintHelp)
-		PrintUsage();
 
 	ComputeProcessor processor;
-	if (!processor.ParseFile(g_InputFilename.c_str(), g_Verbose))
+	if (!processor.ParseFile(filename.c_str(), args.Have("-verbose")))
 		return 1;
 
 	cmpError error = processor.ApplyTransforms();
 	if (!cmpError_OK(&error))
 		printf("%s\n", error.text);
 
-	if (!g_OutputFilename.empty())
+	EmitFile emitter(output_filename.c_str());
+	if (!processor.VisitNodes(&emitter))
 	{
-		EmitFile emitter(g_OutputFilename.c_str());
-		if (!processor.VisitNodes(&emitter))
-		{
-			printf("%s\n", emitter.last_error.text);
-			return 1;
-		}
+		printf("%s\n", emitter.last_error.text);
+		return 1;
 	}
 
 	return 0;
