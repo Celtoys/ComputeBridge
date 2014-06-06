@@ -10,6 +10,27 @@
 class ComputeProcessor;
 
 
+//
+// Searchable command-line arguments that can be shared between transforms.
+// Doesn't require any form of option configuration so trades slower parsing for flexibility.
+//
+class Arguments
+{
+public:
+	Arguments(int argc, const char* argv[]);
+
+	size_t GetIndexOf(const std::string& arg, int occurrence = 0) const;
+	bool Have(const std::string& arg) const;
+	std::string GetProperty(const std::string& arg, int occurrence = 0) const;
+	size_t Count() const;
+
+	const std::string& operator [] (int index) const;
+
+private:
+	std::vector<std::string> m_Arguments;
+};
+
+
 struct ITransform
 {
 	virtual cmpError Apply(ComputeProcessor& processor) = 0;
@@ -46,7 +67,7 @@ struct TokenList
 class ComputeProcessor
 {
 public:
-	ComputeProcessor();
+	ComputeProcessor(const Arguments& arguments);
 	~ComputeProcessor();
 
 	bool ParseFile(const char* filename, bool verbose);
@@ -54,8 +75,12 @@ public:
 	bool VisitNodes(INodeVisitor* visitor);
 
 	const std::string& Filename() const { return m_Filename; }
+	const ::Arguments& Arguments() const { return m_Arguments; }
 
 private:
+	// Copy of command-line arguments
+	::Arguments m_Arguments;
+
 	// Name of the file being parsed
 	std::string m_Filename;
 

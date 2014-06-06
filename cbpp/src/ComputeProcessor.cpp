@@ -2,10 +2,67 @@
 #include "ComputeProcessor.h"
 
 #include <cassert>
+#include <string>
 
 
 // List of all registered transform descriptions
 static std::vector<TransformDescBase*> g_TransformDescs;
+
+
+Arguments::Arguments(int argc, const char* argv[])
+{
+	// Copy from the command-line into local storage
+	m_Arguments.resize(argc);
+	for (size_t i = 0; i < m_Arguments.size(); i++)
+		m_Arguments[i] = argv[i];
+}
+
+
+size_t Arguments::GetIndexOf(const std::string& arg, int occurrence) const
+{
+	// Linear search for a matching argument
+	int found = 0;
+	for (size_t i = 0; i < m_Arguments.size(); i++)
+	{
+		if (m_Arguments[i] == arg)
+		{
+			if (found++ == occurrence)
+				return i;
+		}
+	}
+
+	return -1;
+}
+
+
+bool Arguments::Have(const std::string& arg) const
+{
+	// Does the specific argument exist?
+	return GetIndexOf(arg) != -1;
+}
+
+
+std::string Arguments::GetProperty(const std::string& arg, int occurrence) const
+{
+	// Does the arg exist and does it have a value
+	size_t index = GetIndexOf(arg, occurrence);
+	if (index == -1 || index + 1 >= m_Arguments.size())
+		return "";
+
+	return m_Arguments[index + 1];
+}
+
+
+size_t Arguments::Count() const
+{
+	return m_Arguments.size();
+}
+
+
+const std::string& Arguments::operator [] (int index) const
+{
+	return m_Arguments[index];
+}
 
 
 TokenList::TokenList()
@@ -102,8 +159,9 @@ void TokenList::DeleteAll()
 }
 
 
-ComputeProcessor::ComputeProcessor()
-	: m_MemoryFile(0)
+ComputeProcessor::ComputeProcessor(const ::Arguments& arguments)
+	: m_Arguments(arguments)
+	, m_MemoryFile(0)
 	, m_LexerCursor(0)
 	, m_ParserCursor(0)
 	, m_RootNode(0)
