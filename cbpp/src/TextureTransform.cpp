@@ -327,6 +327,22 @@ namespace
 	}
 
 
+	std::string GetFunctionName(cmpNode* function_node)
+	{
+		assert(function_node->type == cmpNode_FunctionDefn || function_node->type == cmpNode_FunctionDecl);
+
+		// Walk backwards until the first symbol is found
+		cmpToken* function_name_token = function_node->last_token;
+		while (function_name_token != NULL && function_name_token->type != cmpToken_Symbol)
+			function_name_token = function_name_token->prev;
+
+		// Use the symbol token to construct the name
+		assert(function_name_token != NULL);
+		std::string function_name(function_name_token->start, function_name_token->length);
+		return function_name;
+	}
+
+
 	cmpNode* FindContainerParent(cmpNode* node)
 	{
 		// Typedefs are already a parent
@@ -355,7 +371,12 @@ namespace
 
 struct TextureGlobalVar
 {
-	String name;
+	// Which function/variable pair generated this global variable
+	std::string ref_name;
+	std::string function_name;
+
+	String global_name;
+
 	TokenList tokens;
 };
 
@@ -459,6 +480,19 @@ public:
 		token->next = old_tokens.last->next;
 		token->next->prev = token;
 		old_tokens.DeleteAll();
+	}
+
+
+	const TextureGlobalVar* FindGlobal(const std::string& function_name, const std::string& param_name) const
+	{
+		for (size_t i = 0; i < m_GlobalVars.size(); i++)
+		{
+			const TextureGlobalVar& var = m_GlobalVars[i];
+			if (var.function_name == function_name && var.ref_name == param_name)
+				return &var;
+		}
+
+		return 0;
 	}
 
 
@@ -570,16 +604,14 @@ private:
 		var.tokens.Add(cmpToken_Symbol, m_Name.text, m_Name.length, line);
 		var.tokens.Add(cmpToken_Comma, line);
 
-		// Locate the name of the function
-		cmpToken* function_name_token = function_node->last_token;
-		while (function_name_token->type != cmpToken_Symbol)
-			function_name_token = function_name_token->prev;
-
 		// Finish off with a unique name for variable
+		std::string function_name = GetFunctionName(function_node);
 		char texture_var[64];
-		sprintf(texture_var, "__TextureVar_%.*s_%s__", function_name_token->length, function_name_token->start, ref.name.text);
-		var.name = String(texture_var);
-		var.tokens.Add(cmpToken_Symbol, var.name.text, var.name.length, line);
+		sprintf(texture_var, "__TextureVar_%s_%s__", function_name.c_str(), ref.name.text);
+		var.ref_name = ref.name.text;
+		var.function_name = function_name;
+		var.global_name = String(texture_var);
+		var.tokens.Add(cmpToken_Symbol, var.global_name.text, var.global_name.length, line);
 		var.tokens.Add(cmpToken_RBracket, line);
 		var.tokens.Add(cmpToken_SemiColon, line);
 
@@ -608,7 +640,7 @@ private:
 		tokens.Add(cmpToken_Comma, line);
 		tokens.Add(cmpToken_Symbol, ref.name.text, ref.name.length, line);
 		tokens.Add(cmpToken_Comma, line);
-		tokens.Add(cmpToken_Symbol, var.name.text, var.name.length, line);
+		tokens.Add(cmpToken_Symbol, var.global_name.text, var.global_name.length, line);
 		tokens.Add(cmpToken_RBracket, line);
 		tokens.Add(cmpToken_SemiColon, line);
 
