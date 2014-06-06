@@ -169,12 +169,36 @@ public:
 			node.type != cmpNode_Typedef)
 			return true;
 
-		// Search for any of the texture keywords
-		TokenIterator iterator(node);
-		if (iterator.SeekToken(m_TextureMatches) == 0)
-			return true;
+		try
+		{
+			// Gather all texture references in the statement
+			const char* filename = processor.Filename().c_str();
+			TokenIterator iterator(node);
+			while (ScanStatementForRefs(filename, node, iterator))
+				;
+		}
+		catch (const cmpError& error)
+		{
+			m_LastError = error;
+			return false;
+		}
+		
+		return true;
+	}
 
-		const char* filename = processor.Filename().c_str();
+
+	const cmpError& LastError() const
+	{
+		return m_LastError;
+	}
+
+
+private:
+	bool ScanStatementForRefs(const char* filename, cmpNode& node, TokenIterator& iterator)
+	{
+		// Search for any of the texture keywords
+		if (iterator.SeekToken(m_TextureMatches) == 0)
+			return false;
 
 		// Start the texture reference off with its node/token and token hash
 		TextureRef ref;
@@ -186,19 +210,13 @@ public:
 
 		// Ensure '<' follows
 		if (iterator.ExpectToken(MatchTypes(cmpToken_LAngle)) == 0)
-		{
-			m_LastError = cmpError_Create("%s(%d): Expecting '<'", filename, iterator.token->line);
-			return false;
-		}
+			throw cmpError_Create("%s(%d): Expecting '<'", filename, iterator.token->line);
 		++iterator;
 
 		// Ensure a type name is next
 		cmpToken* type_token_0 = iterator.ExpectToken(m_TypeMatches);
 		if (type_token_0 == 0)
-		{
-			m_LastError = cmpError_Create("%s(%d): Expecting a type name", filename, iterator.token->line);
-			return false;
-		}
+			throw cmpError_Create("%s(%d): Expecting a type name", filename, iterator.token->line);
 		ref.type_token = type_token_0;
 		ref.nb_type_tokens = 1;
 		combined_hash = cmpHash_Combine(combined_hash, type_token_0->hash);
@@ -209,15 +227,9 @@ public:
 		{
 			const cmpToken* type_token_1 = iterator.ExpectToken(m_TypeMatches);
 			if (type_token_1 == 0)
-			{
-				m_LastError = cmpError_Create("%s(%d): Expecting a type name after unsigned/signed", filename, iterator.token->line);
-				return false;
-			}
+				throw cmpError_Create("%s(%d): Expecting a type name after unsigned/signed", filename, iterator.token->line);
 			if (type_token_1->hash == KEYWORD_signed.hash || type_token_1->hash == KEYWORD_unsigned.hash)
-			{
-				m_LastError = cmpError_Create("%s(%d): Not expecting unsigned/signed twice", filename, iterator.token->line);
-				return false;
-			}
+				throw cmpError_Create("%s(%d): Not expecting unsigned/signed twice", filename, iterator.token->line);
 
 			ref.nb_type_tokens = 2;
 			combined_hash = cmpHash_Combine(combined_hash, type_token_1->hash);
@@ -226,10 +238,7 @@ public:
 
 		// Ensure '>' closes the type naming
 		if (iterator.ExpectToken(MatchTypes(cmpToken_RAngle)) == 0)
-		{
-			m_LastError = cmpError_Create("%s(%d): Expecting '>'", filename, iterator.token->line);
-			return false;
-		}
+			throw cmpError_Create("%s(%d): Expecting '>'", filename, iterator.token->line);
 		ref.end_of_type_token = iterator.token;
 		++iterator;
 
@@ -237,10 +246,7 @@ public:
 		if (node.type == cmpNode_FunctionParams)
 		{
 			if (iterator.ExpectToken(MatchTypes(cmpToken_Symbol)) == 0)
-			{
-				m_LastError = cmpError_Create("%s(%d): Expecting function parameter to have a name", filename, iterator.token->line);
-				return false;
-			}
+				throw cmpError_Create("%s(%d): Expecting function parameter to have a name", filename, iterator.token->line);
 			ref.name_token = iterator.token;
 			++iterator;
 
@@ -254,13 +260,6 @@ public:
 	}
 
 
-	const cmpError& LastError() const
-	{
-		return m_LastError;
-	}
-
-
-private:
 	MatchHashes m_TextureMatches;
 	MatchHashes m_TypeMatches;
 
