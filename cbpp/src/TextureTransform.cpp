@@ -381,14 +381,14 @@ public:
 		m_TypeDeclTokens.Add(cmpToken_Comma, ref.line);
 
 		// Add the texture dimension token
-		cmpU32 dimensions = ref.Dimensions();
-		const Keyword* kw_dimensions = GetDimensionsKeyword(dimensions);
+		m_Dimensions = ref.Dimensions();
+		const Keyword* kw_dimensions = GetDimensionsKeyword(m_Dimensions);
 		m_TypeDeclTokens.Add(cmpToken_Number, kw_dimensions->text, kw_dimensions->length, ref.line);
 		m_TypeDeclTokens.Add(cmpToken_Comma, ref.line);
 
 		// Add read type token
-		char read_type = ref.ReadType();
-		if (read_type == 'u')
+		m_ReadType = ref.ReadType();
+		if (m_ReadType == 'u')
 			AddToken(m_TypeDeclTokens, KEYWORD_cudaReadModeElementType, ref.line);
 		else
 			AddToken(m_TypeDeclTokens, KEYWORD_cudaReadModeNormalizedFloat, ref.line);
@@ -457,6 +457,10 @@ private:
 	TextureType(const TextureType&);
 	TextureType& operator = (const TextureType&);
 
+	cmpU32 Dimensions() const
+	{
+		return m_Dimensions;
+	}
 
 
 	cmpNode* FindContainerParent(cmpNode* node)
@@ -617,6 +621,11 @@ private:
 	// Tokens created for the unique typedef
 	TokenList m_TypeDeclTokens;
 
+	// Raw type info
+	cmpU32 m_Dimensions;
+	char m_ReadType;
+
+	// List of global variables instantiated with this type
 	std::vector<TextureGlobalVar> m_GlobalVars;
 };
 
