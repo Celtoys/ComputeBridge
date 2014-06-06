@@ -826,15 +826,25 @@ private:
 
 		// Write the header
 		char ID[] = "CUDAKernelTextureParams";
-		fwrite(ID, 1, sizeof(ID), fp);
+		fwrite(ID, 1, sizeof(ID) - 1, fp);
 		cmpU32 nb_functions = ref_ptrs_map.size();
 		fwrite(&nb_functions, 1, sizeof(nb_functions), fp);
 
 		// Iterate over every function's list of texture references
 		for (TextureRefPtrsMap::const_iterator i = ref_ptrs_map.begin(); i != ref_ptrs_map.end(); ++i)
 		{
+			// Write the function name
+			std::string function_name = i->first;
+			size_t function_name_size = function_name.length();
+			fwrite(&function_name_size, 1, sizeof(function_name_size), fp);
+			fwrite(function_name.c_str(), 1, function_name_size, fp);
+
+			// Write the number of texture parameters in the function
 			const TextureRefPtrs& ptrs = i->second;
-			for (size_t j = 0; j < ptrs.size(); j++)
+			size_t nb_ptrs = ptrs.size();
+			fwrite(&nb_ptrs, 1, sizeof(nb_ptrs), fp);
+
+			for (size_t j = 0; j < nb_ptrs; j++)
 			{
 				const TextureRef& ref = *ptrs[j];
 
@@ -844,8 +854,6 @@ private:
 					continue;
 
 				// Map the texture reference to the global variable it generated
-				cmpNode* function_node = FindContainerParent(ref.node);
-				std::string function_name = GetFunctionName(function_node);
 				const TextureGlobalVar* var = type->FindGlobal(function_name, ref.name.text);
 				if (var == 0)
 					continue;
@@ -854,7 +862,7 @@ private:
 				fwrite(&var->global_name.length, 1, sizeof(var->global_name.length), fp);
 				fwrite(var->global_name.text, 1, var->global_name.length, fp);
 
-				// Write channel count
+				// Write dimension count
 				cmpU32 dimensions = type->Dimensions();
 				fwrite(&dimensions, 1, sizeof(dimensions), fp);
 
