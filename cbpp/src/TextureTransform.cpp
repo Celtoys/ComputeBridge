@@ -3,6 +3,8 @@
 
 #include <map>
 #include <cassert>
+#include <string>
+#include <algorithm>
 
 
 namespace
@@ -670,6 +672,12 @@ private:
 };
 
 
+static bool TextureRefPtrSort(const TextureRef* a, const TextureRef* b)
+{
+	return a->position < b->position;
+}
+
+
 class TextureTransform : public ITransform
 {
 public:
@@ -687,6 +695,24 @@ public:
 private:
 	cmpError Apply(ComputeProcessor& processor)
 	{
+		if (cmpError error = FindAllTextureRefs(processor))
+			return error;
+
+		if (cmpError error = AddTypeDeclarations())
+			return error;
+
+		if (cmpError error = TransformAST())
+			return error;
+
+		if (cmpError error = WriteBinary(processor))
+			return error;
+
+		return cmpError_CreateOK();
+	}
+
+
+	cmpError FindAllTextureRefs(ComputeProcessor& processor)
+	{
 		// Find all texture references
 		FindTextureRefs ftr(m_TextureRefsMap);
 		if (!processor.VisitNodes(&ftr))
@@ -694,6 +720,12 @@ private:
 		if (m_TextureRefsMap.size() == 0)
 			return cmpError_CreateOK();
 
+		return cmpError_CreateOK();
+	}
+
+
+	cmpError AddTypeDeclarations()
+	{
 		// Build a list of all unique texture types introduced
 		for (TextureRefsMap::const_iterator i = m_TextureRefsMap.begin(); i != m_TextureRefsMap.end(); ++i)
 		{
@@ -717,6 +749,12 @@ private:
 			m_TextureTypes.push_back(texture_type);
 		}
 
+		return cmpError_CreateOK();
+	}
+
+
+	cmpError TransformAST()
+	{
 		// Replace the type of all texture references with the newly generated unique ones
 		for (size_t i = 0; i < m_TextureTypes.size(); i++)
 		{
@@ -738,6 +776,112 @@ private:
 
 		return cmpError_CreateOK();
 	}
+
+
+	cmpError WriteBinary(const ComputeProcessor& processor)
+	{
+		// The absence of an output binary filename is not an error
+		std::string output_bin = processor.Arguments().GetProperty("-output_bin");
+		if (output_bin == "")
+			return cmpError_CreateOK();
+
+		typedef std::vector<const TextureRef*> TextureRefPtrs;
+		typedef std::map<std::string, TextureRefPtrs> TextureRefPtrsMap;
+		TextureRefPtrsMap ref_ptrs_map;
+
+		// Iterate over all texture references
+		for (TextureRefsMap::const_iterator i = m_TextureRefsMap.begin(); i != m_TextureRefsMap.end(); ++i)
+		{
+			const TextureRefs& refs = i->second;
+			for (size_t j = 0; j < refs.size(); j++)
+			{
+				const TextureRef& ref = refs[j];
+
+				// Looking for function parameters
+				if (ref.node->type != cmpNode_FunctionParams)
+					continue;
+
+				// The function must be a kernel function definition (declarations are prototypes)
+				cmpNode* function_node = FindContainerParent(ref.node);
+				if (function_node->type != cmpNode_FunctionDefn || !IsKernelFunction(function_node))
+					continue;
+
+				// Group texture refs by function
+				std::string function_name = GetFunctionName(function_node);
+				ref_ptrs_map[function_name].push_back(&ref);
+			}
+		}
+
+		// Sort all references by their position in the parameter list (implied from file position)
+		for (TextureRefPtrsMap::iterator i = ref_ptrs_map.begin(); i != ref_ptrs_map.end(); ++i)
+		{
+			TextureRefPtrs& ptrs = i->second;
+			std::sort(ptrs.begin(), ptrs.end(), TextureRefPtrSort);
+		}
+
+		// Open the output file
+		FILE* fp = fopen(output_bin.c_str(), "wb");
+		if (fp == NULL)
+			return cmpError_Create("Failed to write to output binary file '%s'", output_bin.c_str());
+
+		// Write the header
+		char ID[] = "CUDAKernelTextureParams";
+		fwrite(ID, 1, sizeof(ID), fp);
+		cmpU32 nb_functions = ref_ptrs_map.size();
+		fwrite(&nb_functions, 1, sizeof(nb_functions), fp);
+
+		// Iterate over every function's list of texture references
+		for (TextureRefPtrsMap::const_iterator i = ref_ptrs_map.begin(); i != ref_ptrs_map.end(); ++i)
+		{
+			const TextureRefPtrs& ptrs = i->second;
+			for (size_t j = 0; j < ptrs.size(); j++)
+			{
+				const TextureRef& ref = *ptrs[j];
+
+				// Map the texture reference to its type
+				const TextureType* type = FindTextureType(ref.type_key);
+				if (type == 0)
+					continue;
+
+				// Map the texture reference to the global variable it generated
+				cmpNode* function_node = FindContainerParent(ref.node);
+				std::string function_name = GetFunctionName(function_node);
+				const TextureGlobalVar* var = type->FindGlobal(function_name, ref.name.text);
+				if (var == 0)
+					continue;
+
+				// Write global variable name
+				fwrite(&var->global_name.length, 1, sizeof(var->global_name.length), fp);
+				fwrite(var->global_name.text, 1, var->global_name.length, fp);
+
+				// Write channel count
+				cmpU32 dimensions = type->Dimensions();
+				fwrite(&dimensions, 1, sizeof(dimensions), fp);
+
+				// Write read type
+				char read_type = type->ReadType();
+				fwrite(&read_type, 1, 1, fp);
+			}
+		}
+
+		fclose(fp);
+
+		return cmpError_CreateOK();
+	}
+
+
+	const TextureType* FindTextureType(cmpU32 type_key) const
+	{
+		for (size_t i = 0; i < m_TextureTypes.size(); i++)
+		{
+			const TextureType* type = m_TextureTypes[i];
+			if (type->TextureRefsKey() == type_key)
+				return type;
+		}
+
+		return 0;
+	}
+
 
 	// Used to generate unique type names for texture references
 	int m_UniqueTypeIndex;
