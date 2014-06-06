@@ -587,13 +587,10 @@ private:
 		tokens.Add(cmpToken_RBracket, line);
 		tokens.Add(cmpToken_SemiColon, line);
 
-		// Place just after the brace
-		cmpToken* brace_token = block_node->first_token;
-		assert(brace_token->type == cmpToken_LBrace);
-		brace_token->next->prev = tokens.last;
-		tokens.last->next = brace_token->next;
-		brace_token->next = tokens.first;
-		tokens.first->prev = brace_token;
+		// Add to the end of the node's token list
+		// Initially, that last token should be the brace without any EOL info
+		block_node->last_token->next = tokens.first;
+		tokens.first->prev = block_node->last_token;
 		block_node->last_token = tokens.last;
 	}
 
