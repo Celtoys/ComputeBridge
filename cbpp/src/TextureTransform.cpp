@@ -315,6 +315,18 @@ namespace
 	}
 
 
+	bool IsKernelFunction(cmpNode* node)
+	{
+		if (node->type != cmpNode_FunctionDefn && node->type != cmpNode_FunctionDecl)
+			return false;
+
+		// First keyword in the node must be 'cmp_kernel_fn'
+		TokenIterator i(*node);
+		i.SkipWhitespace();
+		return i.token != NULL && i.token->hash == KEYWORD_cmp_kernel_fn.hash;
+	}
+
+
 	cmpToken* AddToken(TokenList& tokens, const Keyword& keyword, cmpU32 line)
 	{
 		// Create a symbol token using globally persistent keyword text
@@ -403,26 +415,19 @@ public:
 		assert(container_parent != 0);
 
 		// Is this a kernel function definition/declaration?
-		if (ref.node->type == cmpNode_FunctionParams &&
-			(container_parent->type == cmpNode_FunctionDefn ||
-			 container_parent->type == cmpNode_FunctionDecl))
+		if (ref.node->type == cmpNode_FunctionParams && IsKernelFunction(container_parent))
 		{
-			TokenIterator i(*container_parent);
-			i.SkipWhitespace();
-			if (i.token != NULL && i.token->hash == KEYWORD_cmp_kernel_fn.hash)
+			// Declarations/definitions require kernel parameter replacement
+			ReplaceKernelParameter(ref, container_parent);
+
+			// Definitions require a global variable and assignment to the variable
+			if (container_parent->type == cmpNode_FunctionDefn)
 			{
-				// Declarations/definitions require kernel parameter replacement
-				ReplaceKernelParameter(ref, container_parent);
-
-				// Definitions require a global variable and assignment to the variable
-				if (container_parent->type == cmpNode_FunctionDefn)
-				{
-					AddKernelGlobalTextureDef(ref, container_parent);
-					AddKernelLocalTextureDef(ref, container_parent);
-				}
-
-				return;
+				AddKernelGlobalTextureDef(ref, container_parent);
+				AddKernelLocalTextureDef(ref, container_parent);
 			}
+
+			return;
 		}
 
 		// Create the single replacement token
