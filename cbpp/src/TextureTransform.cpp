@@ -69,12 +69,14 @@ struct TextureRef
 {
 	TextureRef()
 		: node(0)
+		, position(0)
 		, line(0)
 		, keyword_token(0)
 		, type_token(0)
 		, nb_type_tokens(0)
 		, end_of_type_token(0)
 		, name_token(0)
+		, type_key(0)
 	{
 	}
 
@@ -101,7 +103,8 @@ struct TextureRef
 	// Pointer to the statement, typedef or function parameter list
 	cmpNode* node;
 
-	// Line the texture reference was found on
+	// Position/line the texture reference was found on
+	cmpU32 position;
 	cmpU32 line;
 
 	// Texture keyword
@@ -117,6 +120,9 @@ struct TextureRef
 	// Only set for function parameters
 	cmpToken* name_token;
 	String name;
+
+	// Unique key specific to the type of texture reference
+	cmpU32 type_key;
 };
 
 
@@ -182,7 +188,7 @@ public:
 			m_LastError = error;
 			return false;
 		}
-		
+
 		return true;
 	}
 
@@ -203,6 +209,7 @@ private:
 		// Start the texture reference off with its node/token and token hash
 		TextureRef ref;
 		ref.node = &node;
+		ref.position = (cmpU32)iterator.token->start;
 		ref.line = iterator.token->line;
 		ref.keyword_token = iterator.token;
 		cmpU32 combined_hash = iterator.token->hash;
@@ -255,6 +262,7 @@ private:
 		}
 
 		// Record the texture reference
+		ref.type_key = combined_hash;
 		m_TextureRefsMap[combined_hash].push_back(ref);
 		return true;
 	}
