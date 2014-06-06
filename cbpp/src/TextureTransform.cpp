@@ -327,6 +327,22 @@ namespace
 	}
 
 
+	cmpNode* FindContainerParent(cmpNode* node)
+	{
+		// Typedefs are already a parent
+		if (node->type == cmpNode_Typedef)
+			return node;
+
+		// Search up for a function definition/declaration
+		while (node != 0 &&
+			   node->type != cmpNode_FunctionDefn &&
+			   node->type != cmpNode_FunctionDecl)
+			node = node->parent;
+
+		return node;
+	}
+
+
 	cmpToken* AddToken(TokenList& tokens, const Keyword& keyword, cmpU32 line)
 	{
 		// Create a symbol token using globally persistent keyword text
@@ -452,31 +468,23 @@ public:
 	}
 
 
-private:
-	// Non-copyable
-	TextureType(const TextureType&);
-	TextureType& operator = (const TextureType&);
-
 	cmpU32 Dimensions() const
 	{
 		return m_Dimensions;
 	}
 
 
-	cmpNode* FindContainerParent(cmpNode* node)
+	char ReadType() const
 	{
-		// Typedefs are already a parent
-		if (node->type == cmpNode_Typedef)
-			return node;
-
-		// Search up for a function definition/declaration
-		while (node != 0 &&
-			   node->type != cmpNode_FunctionDefn &&
-			   node->type != cmpNode_FunctionDecl)
-			node = node->parent;
-
-		return node;
+		return m_ReadType;
 	}
+
+
+private:
+	// Non-copyable
+	TextureType(const TextureType&);
+	TextureType& operator = (const TextureType&);
+
 
 
 	void AddNodeBeforeContainerParent(const TokenList& tokens, cmpNode* child_node)
