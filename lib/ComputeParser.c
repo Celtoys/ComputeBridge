@@ -1260,7 +1260,7 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 			cmpNode_Destroy(node);
 			return NULL;
 		}
-		if (token->type != cmpToken_Symbol && token->type != cmpToken_Whitespace)
+		if (token->type != cmpToken_Symbol && token->type != cmpToken_String && token->type != cmpToken_Whitespace)
 			break;
 		if (token->type == cmpToken_Symbol)
 			nb_symbols++;
