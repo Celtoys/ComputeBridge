@@ -400,6 +400,7 @@ const char* cmpTokenType_Name(enum cmpTokenType type)
 		case cmpToken_Whitespace: return "cmpToken_Whitespace";
 		case cmpToken_Typedef: return "cmpToken_Typedef";
 		case cmpToken_Struct: return "cmpToken_Struct";
+		case cmpToken_User: return "cmpToken_User";
 	}
 
 	return "<INTERNAL-ERROR> No token name found";

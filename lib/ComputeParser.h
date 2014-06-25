@@ -201,6 +201,9 @@ enum cmpTokenType
 	// Keyword tokens
 	cmpToken_Typedef,
 	cmpToken_Struct,
+
+	// User-defined token only used for rewriting
+	cmpToken_User,
 };
 
 // Return the name of a given token
