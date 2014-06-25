@@ -113,23 +113,24 @@ struct cmpMemoryFile
 cmpError cmpMemoryFile_Create(cmpMemoryFile** memory_file, const char* filename)
 {
 	FILE* fp;
+	cmpMemoryFile* mf;
 
 	assert(memory_file != NULL);
 
 	// Allocate the container
-	*memory_file = malloc(sizeof(cmpMemoryFile));
-	if (*memory_file == NULL)
+	mf = malloc(sizeof(cmpMemoryFile));
+	if (mf == NULL)
 		return cmpError_Create("malloc(cmpMemoryFile) failed");
 
 	// Set defaults
-	(*memory_file)->data = NULL;
-	(*memory_file)->nb_bytes = 0;
+	mf->data = NULL;
+	mf->nb_bytes = 0;
 
 	// Open the file
 	fp = fopen(filename, "rb");
 	if (fp == NULL)
 	{
-		cmpMemoryFile_Destroy(*memory_file);
+		cmpMemoryFile_Destroy(mf);
 		return cmpError_Create("Couldn't open file '%s'", filename);
 	}
 
@@ -137,27 +138,29 @@ cmpError cmpMemoryFile_Create(cmpMemoryFile** memory_file, const char* filename)
 	if (fseek(fp, 0, SEEK_END) != 0)
 	{
 		fclose(fp);
-		cmpMemoryFile_Destroy(*memory_file);
+		cmpMemoryFile_Destroy(mf);
 		return cmpError_Create("Couldn't figure out size of file '%s'", filename);
 	}
-	(*memory_file)->nb_bytes = ftell(fp);
-	(*memory_file)->data = malloc((*memory_file)->nb_bytes);
+	mf->nb_bytes = ftell(fp);
+	mf->data = malloc(mf->nb_bytes);
 	if (fseek(fp, 0, SEEK_SET) != 0)
 	{
 		fclose(fp);
-		cmpMemoryFile_Destroy(*memory_file);
+		cmpMemoryFile_Destroy(mf);
 		return cmpError_Create("Couldn't figure out size of file '%s'", filename);
 	}
 
 	// Read the entire file into memory
-	if (fread((*memory_file)->data, 1, (*memory_file)->nb_bytes, fp) != (*memory_file)->nb_bytes)
+	if (fread(mf->data, 1, mf->nb_bytes, fp) != mf->nb_bytes)
 	{
 		fclose(fp);
-		cmpMemoryFile_Destroy(*memory_file);
-		return cmpError_Create("Failed to read %d bytes from file '%s'", (*memory_file)->nb_bytes, filename);
+		cmpMemoryFile_Destroy(mf);
+		return cmpError_Create("Failed to read %d bytes from file '%s'", mf->nb_bytes, filename);
 	}
-
 	fclose(fp);
+
+	*memory_file = mf;
+	
 	return cmpError_CreateOK();
 }
 
