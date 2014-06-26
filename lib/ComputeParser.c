@@ -1320,8 +1320,11 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 		// Allowed tokens before a function definition/declaration
 		if (token->type != cmpToken_Symbol &&
 			token->type != cmpToken_Tilde &&
+			token->type != cmpToken_LAngle &&
+			token->type != cmpToken_RAngle &&
 			token->type != cmpToken_String &&
-			token->type != cmpToken_Whitespace)
+			token->type != cmpToken_Whitespace &&
+			token->type != cmpToken_EOL)
 			break;
 
 		if (token->type == cmpToken_Symbol)
