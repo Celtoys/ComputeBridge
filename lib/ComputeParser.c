@@ -904,6 +904,9 @@ struct cmpParserCursor
 	// Current line number, as read from the latest token
 	cmpU32 line;
 
+	// Is the cursor currently nested in a function?
+	cmpBool in_function;
+
 	// Last error encountered
 	cmpError error;
 
@@ -924,6 +927,7 @@ cmpError cmpParserCursor_Create(cmpParserCursor** cursor, cmpToken* first_token,
 	(*cursor)->first_token = first_token;
 	(*cursor)->cur_token = first_token;
 	(*cursor)->line = 0;
+	(*cursor)->in_function = CMP_FALSE;
 	(*cursor)->error = cmpError_CreateOK();
 	(*cursor)->verbose = verbose;
 
@@ -1179,6 +1183,8 @@ static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 
 	VLOG(cur, ("* cmpParser_ConsumeFunction\n"));
 
+	cur->in_function = CMP_TRUE;
+
 	// Create a node for the function parameters
 	error = cmpNode_Create(&params_node, cmpNode_FunctionParams, cur);
 	if (!cmpError_OK(&error))
@@ -1244,6 +1250,8 @@ static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 			break;
 		}
 	}
+
+	cur->in_function = CMP_FALSE;
 
 	return node;
 }
@@ -1338,7 +1346,7 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 	}
 
 	// Check to see if this is a function definition/declaration and grab its parameters
-	if (nb_symbols > 1)
+	if (nb_symbols > 1 && cur->in_function == CMP_FALSE)
 	{
 		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
 		if (token->type == cmpToken_LBracket)
