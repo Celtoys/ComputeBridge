@@ -285,6 +285,7 @@ enum cmpNodeType
 	cmpNode_StructTag,
 	cmpNode_StructName,
 	cmpNode_Typedef,
+	cmpNode_InitialiserList,
 
 	// Points directly to a single token that can be ignored semantically but used for rewriting
 	cmpNode_Token,

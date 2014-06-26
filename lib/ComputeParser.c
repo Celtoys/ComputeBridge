@@ -1020,6 +1020,7 @@ const char* cmpNodeType_Name(enum cmpNodeType type)
 		case cmpNode_StructTag: return "cmpNode_StructTag";
 		case cmpNode_StructName: return "cmpNode_StructName";
 		case cmpNode_Typedef: return "cmpNode_Typedef";
+		case cmpNode_InitialiserList: return "cmpNode_InitialiserList";
 		case cmpNode_Token: return "cmpNode_Token";
 		case cmpNode_UserTokens: return "cmpNode_UserTokens";
 	}
@@ -1292,8 +1293,7 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 	cmpNode* node;
 	cmpError error;
 
-	// Token that triggers this is a symbol itself
-	cmpU32 nb_symbols = 1;
+	cmpU32 nb_symbols = 0;
 
 	VLOG(cur, ("* cmpParser_ConsumeStatement\n"));
 
@@ -1304,7 +1304,6 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 		cmpParserCursor_SetError(cur, &error);
 		return NULL;
 	}
-	cmpParserCursor_ConsumeToken(cur);
 
 	// Skip over any leading symbols
 	while (1)
@@ -1594,6 +1593,45 @@ static cmpNode* cmpParser_ConsumeStatementBlock(cmpParserCursor* cur)
 }
 
 
+static cmpNode* cmpParser_ConsumeInitialiserList(cmpParserCursor* cur)
+{
+	cmpNode* node;
+	cmpError error;
+
+	VLOG(cur, ("* cmpParser_ConsumeInitialiserList\n"));
+
+	// Create the node
+	error = cmpNode_Create(&node, cmpNode_InitialiserList, cur);
+	if (!cmpError_OK(&error))
+	{
+		cmpParserCursor_SetError(cur, &error);
+		return NULL;
+	}
+	cmpParserCursor_ConsumeToken(cur);
+
+	// Consume all tokens until the opening brace
+	while (1)
+	{
+		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
+		if (token == NULL)
+		{
+			error = cmpError_Create("Unexpected EOF when parsing initialiser list");
+			cmpParserCursor_SetError(cur, &error);
+			cmpNode_Destroy(node);
+			return NULL;
+		}
+
+		if (token->type == cmpToken_LBrace)
+			break;
+
+		cmpParserCursor_ConsumeToken(cur);
+		node->last_token = token;
+	}
+
+	return node;
+}
+
+
 static cmpNode* cmpParser_ConsumeToken(cmpParserCursor* cur)
 {
 	cmpNode* node;
@@ -1642,9 +1680,12 @@ cmpNode* cmpParser_ConsumeNode(cmpParserCursor* cur)
 		case cmpToken_Struct:
 			return cmpParser_ConsumeStruct(cur);
 		case cmpToken_Symbol:
+		case cmpToken_Asterisk:
 			return cmpParser_ConsumeStatement(cur);
 		case cmpToken_LBrace:
 			return cmpParser_ConsumeStatementBlock(cur);
+		case cmpToken_Colon:
+			return cmpParser_ConsumeInitialiserList(cur);
 
 		default:
 			error = cmpError_Create("Unexpected token '%s'", cmpTokenType_Name(token->type));
