@@ -589,6 +589,7 @@ static cmpBool cmpLexer_IsSymbol(cmpLexerCursor* cur, cmpToken* token, char c, v
 // Lazy-initialised hashes for all keywords - assumes no collisions
 static cmpU32 HASH_typedef = 0;
 static cmpU32 HASH_struct = 0;
+static cmpU32 HASH_declspec = 0;
 
 
 static void cmpLexer_IdentifyKeywordTokens(cmpToken* token)
@@ -604,6 +605,7 @@ static void cmpLexer_IdentifyKeywordTokens(cmpToken* token)
 	{
 		HASH_typedef = cmpHash("typedef", 0);
 		HASH_struct = cmpHash("struct", 0);
+		HASH_declspec = cmpHash("__declspec", 0);
 	}
 
 	// Switch on first character to reduce token hashing and sequential compares
@@ -1247,6 +1249,36 @@ static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 }
 
 
+static cmpToken* cmpParser_ConsumeDeclspec(cmpParserCursor* cur)
+{
+	cmpToken* last_token = cur->cur_token;
+
+	VLOG(cur, ("* cmpParser_ConsumeDeclspec\n"));
+
+	cmpParserCursor_ConsumeToken(cur);
+
+	// Loop consuming all tokens until the closing right bracket
+	while (1)
+	{
+		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
+		if (token == NULL)
+		{
+			cmpError error = cmpError_Create("Unexpected EOF when parsing __declspec");
+			cmpParserCursor_SetError(cur, &error);
+			return NULL;
+		}
+
+		cmpParserCursor_ConsumeToken(cur);
+		last_token = token;
+
+		if (token->type == cmpToken_RBracket)
+			break;
+	}
+
+	return last_token;
+}
+
+
 static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 {
 	cmpNode* node;
@@ -1277,11 +1309,31 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 			cmpNode_Destroy(node);
 			return NULL;
 		}
-		if (token->type != cmpToken_Symbol && token->type != cmpToken_String && token->type != cmpToken_Whitespace)
+
+		// Allowed tokens before a function definition/declaration
+		if (token->type != cmpToken_Symbol &&
+			token->type != cmpToken_String &&
+			token->type != cmpToken_Whitespace)
 			break;
+
 		if (token->type == cmpToken_Symbol)
 			nb_symbols++;
-		cmpParserCursor_ConsumeToken(cur);
+
+		if (token->hash == HASH_declspec)
+		{
+			// Consume a __declspec as part of a function description
+			token = cmpParser_ConsumeDeclspec(cur);
+			if (token == NULL)
+			{
+				cmpNode_Destroy(node);
+				return NULL;
+			}
+		}
+		else
+		{
+			cmpParserCursor_ConsumeToken(cur);
+		}
+
 		node->last_token = token;
 	}
 
