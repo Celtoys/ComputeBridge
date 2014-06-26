@@ -1249,11 +1249,16 @@ static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 
 static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 {
-	cmpU32 nb_symbols = 0;
+	cmpNode* node;
+	cmpError error;
+
+	// Token that triggers this is a symbol itself
+	cmpU32 nb_symbols = 1;
+
+	VLOG(cur, ("* cmpParser_ConsumeStatement\n"));
 
 	// Create the node
-	cmpNode* node;
-	cmpError error = cmpNode_Create(&node, cmpNode_Statement, cur);
+	error = cmpNode_Create(&node, cmpNode_Statement, cur);
 	if (!cmpError_OK(&error))
 	{
 		cmpParserCursor_SetError(cur, &error);
@@ -1301,7 +1306,7 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 		}
 
 		// No statement block encountered, this is a typical statement
-		if (token->type == cmpToken_SemiColon)
+		if (token->type == cmpToken_SemiColon || token->type == cmpToken_RBrace)
 			break;
 
 		// Recurse into a statement block
