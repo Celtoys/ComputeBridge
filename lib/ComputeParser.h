@@ -280,6 +280,7 @@ enum cmpNodeType
 	cmpNode_FunctionDefn,
 	cmpNode_FunctionDecl,
 	cmpNode_FunctionParams,
+	cmpNode_FunctionSpec,
 	cmpNode_StructDefn,
 	cmpNode_StructDecl,
 	cmpNode_StructTag,

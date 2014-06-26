@@ -1015,6 +1015,7 @@ const char* cmpNodeType_Name(enum cmpNodeType type)
 		case cmpNode_FunctionDefn: return "cmpNode_FunctionDefn";
 		case cmpNode_FunctionDecl: return "cmpNode_FunctionDecl";
 		case cmpNode_FunctionParams: return "cmpNode_FunctionParams";
+		case cmpNode_FunctionSpec: return "cmpNode_FunctionSpec";
 		case cmpNode_StructDefn: return "cmpNode_StructDefn";
 		case cmpNode_StructDecl: return "cmpNode_StructDecl";
 		case cmpNode_StructTag: return "cmpNode_StructTag";
@@ -1176,15 +1177,15 @@ static cmpNode* cmpParser_ConsumePPDirective(cmpParserCursor* cur)
 static cmpNode* cmpParser_ConsumeStatementBlock(cmpParserCursor* cur);
 
 
-static cmpNode* cmpParser_ConsumeInitialiserList(cmpParserCursor* cur)
+static cmpNode* cmpParser_ConsumeFunctionSpec(cmpParserCursor* cur, enum cmpNodeType type, const char* desc)
 {
 	cmpNode* node;
 	cmpError error;
 
-	VLOG(cur, ("* cmpParser_ConsumeInitialiserList\n"));
+	VLOG(cur, ("* cmpParser_ConsumeFunctionSpec\n"));
 
 	// Create the node
-	error = cmpNode_Create(&node, cmpNode_InitialiserList, cur);
+	error = cmpNode_Create(&node, type, cur);
 	if (!cmpError_OK(&error))
 	{
 		cmpParserCursor_SetError(cur, &error);
@@ -1198,7 +1199,7 @@ static cmpNode* cmpParser_ConsumeInitialiserList(cmpParserCursor* cur)
 		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
 		if (token == NULL)
 		{
-			error = cmpError_Create("Unexpected EOF when parsing initialiser list");
+			error = cmpError_Create("Unexpected EOF when parsing %s", desc);
 			cmpParserCursor_SetError(cur, &error);
 			cmpNode_Destroy(node);
 			return NULL;
@@ -1215,11 +1216,37 @@ static cmpNode* cmpParser_ConsumeInitialiserList(cmpParserCursor* cur)
 }
 
 
+static cmpToken* cmpParserCursor_ConsumeWhitespace(cmpParserCursor* cur, cmpNode* node)
+{
+	cmpToken* token;
+
+	// Consume white-space as part of the input node
+	while (1)
+	{
+		token = cmpParserCursor_PeekToken(cur, 0);
+		if (token == NULL)
+		{
+			cmpError error = cmpError_Create("Unexpected EOF when parsing function parameters");
+			cmpParserCursor_SetError(cur, &error);
+			return NULL;
+		}
+		cmpParserCursor_ConsumeToken(cur);
+		node->last_token = token;
+		if (token->type != cmpToken_Whitespace && token->type != cmpToken_EOL)
+			break;
+	}
+
+	return token;
+}
+
+
 static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 {
 	cmpU32 nb_brackets;
 	cmpNode* params_node;
+	cmpNode* child_node;
 	cmpError error;
+	cmpToken* token;
 
 	VLOG(cur, ("* cmpParser_ConsumeFunction\n"));
 
@@ -1239,7 +1266,7 @@ static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 	nb_brackets = 1;
 	while (1)
 	{
-		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
+		token = cmpParserCursor_PeekToken(cur, 0);
 		if (token == NULL)
 		{
 			cmpError error = cmpError_Create("Unexpected EOF when parsing function parameters");
@@ -1263,47 +1290,40 @@ static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 		params_node->last_token = token;
 	}
 
-	while (1)
+	// Consume white-space as part of the parameter declaration
+	token = cmpParserCursor_ConsumeWhitespace(cur, params_node);
+	if (token == NULL)
 	{
-		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
-		if (token == NULL)
-		{
-			cmpError error = cmpError_Create("Unexpected EOF when parsing function body");
-			cmpParserCursor_SetError(cur, &error);
-			cmpNode_Destroy(node);
-			return NULL;
-		}
-
-		//  Terminate as a function declaration
-		if (token->type == cmpToken_SemiColon)
-		{
-			node->type = cmpNode_FunctionDecl;
-			break;
-		}
-
-		// Parse any function body and terminate
-		if (token->type == cmpToken_LBrace)
-		{
-			cmpNode* child_node = cmpParser_ConsumeStatementBlock(cur);
-			cmpNode_AddChild(node, child_node);
-			node->type = cmpNode_FunctionDefn;
-			break;
-		}
-
-		// Check for an initialiser list
-		if (token->type == cmpToken_Colon)
-		{
-			cmpNode* child_node = cmpParser_ConsumeInitialiserList(cur);
-			cmpNode_AddChild(node, child_node);
-		}
-
-		else
-		{
-			// This will add whitespace/EOL or any const/throw() declarations to the function
-			cmpParserCursor_ConsumeToken(cur);
-			node->last_token = token;
-		}
+		cmpNode_Destroy(node);
+		return NULL;
 	}
+
+	// Terminate as function declaration?
+	if (token->type == cmpToken_SemiColon)
+	{
+		node->type = cmpNode_FunctionDecl;
+		cur->in_function = CMP_FALSE;
+		return node;
+	}
+
+	// Consume any initialiser lists
+	if (token->type == cmpToken_Colon)
+	{
+		child_node = cmpParser_ConsumeFunctionSpec(cur, cmpNode_InitialiserList, "initialiser list");
+		cmpNode_AddChild(node, child_node);
+	}
+
+	// Anything else is a function specification
+	else if (token->type != cmpToken_LBrace)
+	{
+		child_node = cmpParser_ConsumeFunctionSpec(cur, cmpNode_FunctionSpec, "function specification");
+		cmpNode_AddChild(node, child_node);
+	}
+
+	// Expect a statement block
+	child_node = cmpParser_ConsumeStatementBlock(cur);
+	cmpNode_AddChild(node, child_node);
+	node->type = cmpNode_FunctionDefn;
 
 	cur->in_function = CMP_FALSE;
 
