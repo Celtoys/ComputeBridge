@@ -1176,6 +1176,45 @@ static cmpNode* cmpParser_ConsumePPDirective(cmpParserCursor* cur)
 static cmpNode* cmpParser_ConsumeStatementBlock(cmpParserCursor* cur);
 
 
+static cmpNode* cmpParser_ConsumeInitialiserList(cmpParserCursor* cur)
+{
+	cmpNode* node;
+	cmpError error;
+
+	VLOG(cur, ("* cmpParser_ConsumeInitialiserList\n"));
+
+	// Create the node
+	error = cmpNode_Create(&node, cmpNode_InitialiserList, cur);
+	if (!cmpError_OK(&error))
+	{
+		cmpParserCursor_SetError(cur, &error);
+		return NULL;
+	}
+	cmpParserCursor_ConsumeToken(cur);
+
+	// Consume all tokens until the opening brace
+	while (1)
+	{
+		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
+		if (token == NULL)
+		{
+			error = cmpError_Create("Unexpected EOF when parsing initialiser list");
+			cmpParserCursor_SetError(cur, &error);
+			cmpNode_Destroy(node);
+			return NULL;
+		}
+
+		if (token->type == cmpToken_LBrace)
+			break;
+
+		cmpParserCursor_ConsumeToken(cur);
+		node->last_token = token;
+	}
+
+	return node;
+}
+
+
 static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 {
 	cmpU32 nb_brackets;
@@ -1224,31 +1263,45 @@ static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 		params_node->last_token = token;
 	}
 
-	// Parse the function body, if it exists
 	while (1)
 	{
-		cmpNode* child_node = cmpParser_ConsumeNode(cur);
-		if (child_node == NULL)
+		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
+		if (token == NULL)
 		{
+			cmpError error = cmpError_Create("Unexpected EOF when parsing function body");
+			cmpParserCursor_SetError(cur, &error);
 			cmpNode_Destroy(node);
 			return NULL;
 		}
 
-		// Add everything encountered as a child
-		cmpNode_AddChild(node, child_node);
-
-		// Terminate as a function declaration
-		if (child_node->type == cmpNode_Token && child_node->first_token->type == cmpToken_SemiColon)
+		//  Terminate as a function declaration
+		if (token->type == cmpToken_SemiColon)
 		{
 			node->type = cmpNode_FunctionDecl;
 			break;
 		}
 
-		// Terminate as a function definition
-		if (child_node->type == cmpNode_StatementBlock)
+		// Parse any function body and terminate
+		if (token->type == cmpToken_LBrace)
 		{
+			cmpNode* child_node = cmpParser_ConsumeStatementBlock(cur);
+			cmpNode_AddChild(node, child_node);
 			node->type = cmpNode_FunctionDefn;
 			break;
+		}
+
+		// Check for an initialiser list
+		if (token->type == cmpToken_Colon)
+		{
+			cmpNode* child_node = cmpParser_ConsumeInitialiserList(cur);
+			cmpNode_AddChild(node, child_node);
+		}
+
+		else
+		{
+			// This will add whitespace/EOL or any const/throw() declarations to the function
+			cmpParserCursor_ConsumeToken(cur);
+			node->last_token = token;
 		}
 	}
 
@@ -1597,45 +1650,6 @@ static cmpNode* cmpParser_ConsumeStatementBlock(cmpParserCursor* cur)
 }
 
 
-static cmpNode* cmpParser_ConsumeInitialiserList(cmpParserCursor* cur)
-{
-	cmpNode* node;
-	cmpError error;
-
-	VLOG(cur, ("* cmpParser_ConsumeInitialiserList\n"));
-
-	// Create the node
-	error = cmpNode_Create(&node, cmpNode_InitialiserList, cur);
-	if (!cmpError_OK(&error))
-	{
-		cmpParserCursor_SetError(cur, &error);
-		return NULL;
-	}
-	cmpParserCursor_ConsumeToken(cur);
-
-	// Consume all tokens until the opening brace
-	while (1)
-	{
-		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
-		if (token == NULL)
-		{
-			error = cmpError_Create("Unexpected EOF when parsing initialiser list");
-			cmpParserCursor_SetError(cur, &error);
-			cmpNode_Destroy(node);
-			return NULL;
-		}
-
-		if (token->type == cmpToken_LBrace)
-			break;
-
-		cmpParserCursor_ConsumeToken(cur);
-		node->last_token = token;
-	}
-
-	return node;
-}
-
-
 static cmpNode* cmpParser_ConsumeToken(cmpParserCursor* cur)
 {
 	cmpNode* node;
@@ -1690,8 +1704,6 @@ cmpNode* cmpParser_ConsumeNode(cmpParserCursor* cur)
 			return cmpParser_ConsumeStatement(cur);
 		case cmpToken_LBrace:
 			return cmpParser_ConsumeStatementBlock(cur);
-		case cmpToken_Colon:
-			return cmpParser_ConsumeInitialiserList(cur);
 
 		default:
 			error = cmpError_Create("Unexpected token '%s'", cmpTokenType_Name(token->type));
