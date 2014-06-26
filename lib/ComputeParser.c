@@ -1683,6 +1683,7 @@ cmpNode* cmpParser_ConsumeNode(cmpParserCursor* cur)
 		case cmpToken_Symbol:
 		case cmpToken_Asterisk:
 		case cmpToken_Tilde:
+		case cmpToken_LBracket:
 			return cmpParser_ConsumeStatement(cur);
 		case cmpToken_LBrace:
 			return cmpParser_ConsumeStatementBlock(cur);
