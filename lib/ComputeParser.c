@@ -25,6 +25,8 @@
 #include <string.h>
 
 
+#define VLOG(obj, str) if ((obj)->verbose) printf str
+
 
 cmpU32 cmpHash(const char* str, cmpU32 length)
 {
@@ -160,7 +162,7 @@ cmpError cmpMemoryFile_Create(cmpMemoryFile** memory_file, const char* filename)
 	fclose(fp);
 
 	*memory_file = mf;
-	
+
 	return cmpError_CreateOK();
 }
 
@@ -210,10 +212,12 @@ struct cmpLexerCursor
 
 	// Current error
 	cmpError error;
+
+	cmpBool verbose;
 };
 
 
-cmpError cmpLexerCursor_Create(cmpLexerCursor** cursor, const char* file_data, cmpU32 file_size)
+cmpError cmpLexerCursor_Create(cmpLexerCursor** cursor, const char* file_data, cmpU32 file_size, cmpBool verbose)
 {
 	assert(cursor != NULL);
 
@@ -229,6 +233,7 @@ cmpError cmpLexerCursor_Create(cmpLexerCursor** cursor, const char* file_data, c
 	(*cursor)->line = 1;
 	(*cursor)->line_position = 0;
 	(*cursor)->error = cmpError_CreateOK();
+	(*cursor)->verbose = verbose;
 
 	return cmpError_CreateOK();
 }
@@ -899,10 +904,12 @@ struct cmpParserCursor
 
 	// Last error encountered
 	cmpError error;
+
+	cmpBool verbose;
 };
 
 
-cmpError cmpParserCursor_Create(cmpParserCursor** cursor, cmpToken* first_token)
+cmpError cmpParserCursor_Create(cmpParserCursor** cursor, cmpToken* first_token, cmpBool verbose)
 {
 	assert(cursor != NULL);
 
@@ -916,6 +923,7 @@ cmpError cmpParserCursor_Create(cmpParserCursor** cursor, cmpToken* first_token)
 	(*cursor)->cur_token = first_token;
 	(*cursor)->line = 0;
 	(*cursor)->error = cmpError_CreateOK();
+	(*cursor)->verbose = verbose;
 
 	return cmpError_CreateOK();
 }
@@ -971,6 +979,7 @@ static cmpToken* cmpParserCursor_ConsumeToken(cmpParserCursor* cursor)
 	cmpToken* token = cmpParserCursor_PeekToken(cursor, 0);
 	if (token != NULL)
 		cursor->cur_token = token->next;
+	VLOG(cursor, ("   + %s\n", cmpTokenType_Name(token->type)));
 	return token;
 }
 
@@ -1163,10 +1172,13 @@ static cmpNode* cmpParser_ConsumeStatementBlock(cmpParserCursor* cur);
 static cmpNode* cmpParser_ConsumeFunction(cmpParserCursor* cur, cmpNode* node)
 {
 	cmpU32 nb_brackets;
+	cmpNode* params_node;
+	cmpError error;
+
+	VLOG(cur, ("* cmpParser_ConsumeFunction\n"));
 
 	// Create a node for the function parameters
-	cmpNode* params_node;
-	cmpError error = cmpNode_Create(&params_node, cmpNode_FunctionParams, cur);
+	error = cmpNode_Create(&params_node, cmpNode_FunctionParams, cur);
 	if (!cmpError_OK(&error))
 	{
 		cmpParserCursor_SetError(cur, &error);
@@ -1342,10 +1354,13 @@ static cmpNode* cmpParser_ConsumeStruct(cmpParserCursor* cur)
 {
 	cmpToken* next_token;
 	cmpBool name_is_tag = CMP_FALSE;
+	cmpNode* node;
+	cmpError error;
+
+	VLOG(cur, ("* cmpParser_ConsumeStruct\n"));
 
 	// Create the node
-	cmpNode* node;
-	cmpError error = cmpNode_Create(&node, cmpNode_StructDefn, cur);
+	error = cmpNode_Create(&node, cmpNode_StructDefn, cur);
 	if (!cmpError_OK(&error))
 	{
 		cmpParserCursor_SetError(cur, &error);
@@ -1433,9 +1448,12 @@ static cmpNode* cmpParser_ConsumeTypedef(cmpParserCursor* cur)
 {
 	cmpNode* node;
 	cmpError error;
+	cmpToken* next_token;
+
+	VLOG(cur, ("* cmpParser_ConsumeTypedef\n"));
 
 	// Redirect as a struct if this is "typedef struct"
-	cmpToken* next_token = cmpParserCursor_PeekToken(cur, 1);
+	next_token = cmpParserCursor_PeekToken(cur, 1);
 	if (next_token != NULL && next_token->type == cmpToken_Struct)
 		return cmpParser_ConsumeStruct(cur);
 
@@ -1473,9 +1491,13 @@ static cmpNode* cmpParser_ConsumeTypedef(cmpParserCursor* cur)
 
 static cmpNode* cmpParser_ConsumeStatementBlock(cmpParserCursor* cur)
 {
-	// Create the node
 	cmpNode* node;
-	cmpError error = cmpNode_Create(&node, cmpNode_StatementBlock, cur);
+	cmpError error;
+
+	VLOG(cur, ("* cmpParser_ConsumeStatementBlock\n"));
+
+	// Create the node
+	error = cmpNode_Create(&node, cmpNode_StatementBlock, cur);
 	if (!cmpError_OK(&error))
 	{
 		cmpParserCursor_SetError(cur, &error);
@@ -1509,9 +1531,13 @@ static cmpNode* cmpParser_ConsumeStatementBlock(cmpParserCursor* cur)
 
 static cmpNode* cmpParser_ConsumeToken(cmpParserCursor* cur)
 {
-	// Create the node
 	cmpNode* node;
-	cmpError error = cmpNode_Create(&node, cmpNode_Token, cur);
+	cmpError error;
+
+	VLOG(cur, ("* cmpParser_ConsumeToken\n"));
+
+	// Create the node
+	error = cmpNode_Create(&node, cmpNode_Token, cur);
 	if (!cmpError_OK(&error))
 	{
 		cmpParserCursor_SetError(cur, &error);
@@ -1525,7 +1551,11 @@ static cmpNode* cmpParser_ConsumeToken(cmpParserCursor* cur)
 cmpNode* cmpParser_ConsumeNode(cmpParserCursor* cur)
 {
 	cmpError error;
-	cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
+	cmpToken* token;
+
+	VLOG(cur, ("* cmpParser_ConsumeNode\n"));
+
+	token = cmpParserCursor_PeekToken(cur, 0);
 	if (token == NULL)
 		return NULL;
 
@@ -1573,7 +1603,7 @@ void cmpParser_LogNodes(const cmpNode* node, cmpU32 depth)
 		printf("%.*s", depth + 1, "                    ");
 		for (token = first_token; token != last_token; token = token->next)
 		{
-			if (token->start[0] <= 32)
+			if (token->start[0] < 32)
 			{
 				int i;
 				for (i = 0; i < token->length; i++)

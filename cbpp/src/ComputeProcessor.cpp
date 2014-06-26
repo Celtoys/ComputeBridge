@@ -212,7 +212,7 @@ bool ComputeProcessor::ParseFile(const char* filename, bool verbose)
 	}
 
 	// Build a list of tokens
-	if (cmpError error = cmpLexerCursor_Create(&m_LexerCursor, cmpMemoryFile_Data(m_MemoryFile), cmpMemoryFile_Size(m_MemoryFile)))
+	if (cmpError error = cmpLexerCursor_Create(&m_LexerCursor, cmpMemoryFile_Data(m_MemoryFile), cmpMemoryFile_Size(m_MemoryFile), verbose))
 	{
 		printf("Error creating lexer cursor: %s\n\n", cmpError_Text(&error));
 		return false;
@@ -239,7 +239,7 @@ bool ComputeProcessor::ParseFile(const char* filename, bool verbose)
 	}
 
 	// Build a list of parser nodes
-	if (cmpError error = cmpParserCursor_Create(&m_ParserCursor, m_Tokens.first))
+	if (cmpError error = cmpParserCursor_Create(&m_ParserCursor, m_Tokens.first, verbose))
 	{
 		printf("Error creating parser cursor: %s\n\n", cmpError_Text(&error));
 		return false;

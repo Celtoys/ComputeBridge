@@ -114,7 +114,7 @@ cmpU32 cmpMemoryFile_Size(cmpMemoryFile* memory_file);
 //
 typedef struct cmpLexerCursor cmpLexerCursor;
 
-cmpError cmpLexerCursor_Create(cmpLexerCursor** cursor, const char* file_data, cmpU32 file_size);
+cmpError cmpLexerCursor_Create(cmpLexerCursor** cursor, const char* file_data, cmpU32 file_size, cmpBool verbose);
 
 void cmpLexerCursor_Destroy(cmpLexerCursor* cursor);
 
@@ -258,7 +258,7 @@ cmpToken* cmpLexer_ConsumeToken(cmpLexerCursor* cur);
 //
 typedef struct cmpParserCursor cmpParserCursor;
 
-cmpError cmpParserCursor_Create(cmpParserCursor** cursor, cmpToken* first_token);
+cmpError cmpParserCursor_Create(cmpParserCursor** cursor, cmpToken* first_token, cmpBool verbose);
 
 void cmpParserCursor_Destroy(cmpParserCursor* cursor);
 
