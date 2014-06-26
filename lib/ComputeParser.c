@@ -1319,6 +1319,7 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 
 		// Allowed tokens before a function definition/declaration
 		if (token->type != cmpToken_Symbol &&
+			token->type != cmpToken_Tilde &&
 			token->type != cmpToken_String &&
 			token->type != cmpToken_Whitespace)
 			break;
@@ -1345,7 +1346,7 @@ static cmpNode* cmpParser_ConsumeStatement(cmpParserCursor* cur)
 	}
 
 	// Check to see if this is a function definition/declaration and grab its parameters
-	if (nb_symbols > 1 && cur->in_function == CMP_FALSE)
+	if (cur->in_function == CMP_FALSE)
 	{
 		cmpToken* token = cmpParserCursor_PeekToken(cur, 0);
 		if (token->type == cmpToken_LBracket)
@@ -1681,6 +1682,7 @@ cmpNode* cmpParser_ConsumeNode(cmpParserCursor* cur)
 			return cmpParser_ConsumeStruct(cur);
 		case cmpToken_Symbol:
 		case cmpToken_Asterisk:
+		case cmpToken_Tilde:
 			return cmpParser_ConsumeStatement(cur);
 		case cmpToken_LBrace:
 			return cmpParser_ConsumeStatementBlock(cur);
