@@ -115,7 +115,7 @@ cmpToken* TokenList::Add(enum cmpTokenType type, cmpU32 line)
 {
 	// Ensure this is a single character token
 	assert(type != cmpToken_None);
-	assert(type < cmpToken_InvalidSeparator);
+	assert(type == cmpToken_Whitespace || type == cmpToken_EOL || type < cmpToken_InvalidSeparator);
 
 	// Construnct a single character string out of its character code
 	const char* text;
@@ -146,6 +146,11 @@ cmpToken* TokenList::Add(enum cmpTokenType type, cmpU32 line)
 		case cmpToken_Xor: text = "^"; break;
 		case cmpToken_Not: text = "!"; break;
 		case cmpToken_Hash: text = "#"; break;
+
+		// Single character tokens for writing to file but not necessarily as input
+		case cmpToken_Whitespace: text = " "; break;
+		case cmpToken_EOL: text = "\n"; break;
+
 		default:
 			assert(false);
 	}
