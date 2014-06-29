@@ -310,10 +310,56 @@ namespace
 		if (node->type != cmpNode_FunctionDefn && node->type != cmpNode_FunctionDecl)
 			return false;
 
-		// First keyword in the node must be 'cmp_kernel_fn'
-		TokenIterator i(*node);
-		i.SkipWhitespace();
-		return i.token != NULL && i.token->hash == KEYWORD_cmp_kernel_fn.hash;
+		//
+		// Looking for these starting tokens:
+		//
+		// 		kernel					[ OpenCL AFTER pre-processor run ]
+		// 		extern "C" __global__	[ CUDA AFTER pre-processor run ]
+		//
+		TokenIterator ti(*node);
+		ti.SkipWhitespace();
+		if (ti.token == 0)
+			return false;
+
+		// Check for OpenCL
+		if (ti.token->hash == KEYWORD_kernel.hash)
+			return true;
+
+		// Check the CUDA equivalent
+		// extern "C" __declspec(__global__)
+		static cmpTokenType type_match[] =
+		{
+			cmpToken_Symbol,	// extern
+			cmpToken_String,	// "C"
+			cmpToken_Symbol,	// __declspec
+			cmpToken_LBracket,	// (
+			cmpToken_Symbol,	// __global__
+			cmpToken_RBracket,	// )
+		};
+		static const int NB_TOKENS = sizeof(type_match) / sizeof(type_match[0]);
+		static cmpToken* tokens[NB_TOKENS];
+
+		// Match all token types
+		for (int i = 0; i < NB_TOKENS; i++)
+		{
+			cmpToken* token = ti.ExpectToken(MatchTypes(type_match[i]));
+			if (ti.token == 0)
+				return false;
+			tokens[i] = token;
+			++ti;
+		}
+
+		// Ensure the token contents match
+		if (tokens[0]->hash != KEYWORD_extern.hash)
+			return false;
+		if (tokens[1]->length != 3 || tokens[1]->start[1] != 'C')
+			return false;
+		if (tokens[2]->hash != KEYWORD_declspec.hash)
+			return false;
+		if (tokens[4]->hash != KEYWORD_global.hash)
+			return false;
+
+		return true;
 	}
 
 
@@ -880,4 +926,4 @@ private:
 
 
 // Register transform
-static TransformDesc<TextureTransform> g_TextureTransform;
+static TransformDesc<TextureTransform> g_Transform;
