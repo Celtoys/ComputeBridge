@@ -181,6 +181,27 @@ struct String
 };
 
 
+//
+// Pointer to text stored in the code segment by the compiler with associated hash code.
+//
+struct HashString
+{
+	HashString(const char* text)
+		: text(text)
+		, length(strlen(text))
+		, hash(cmpHash(text, length))
+	{
+	}
+
+	const char* text;
+
+	cmpU32 length;
+
+	cmpU32 hash;
+};
+
+
+
 
 //
 // Checks a token field specified by the template parameters to see if it is equal to any one of the

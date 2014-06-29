@@ -9,56 +9,44 @@
 
 namespace
 {
-	struct Keyword
-	{
-		Keyword(const char* text)
-			: text(text)
-			, length(strlen(text))
-			, hash(cmpHash(text, length))
-		{
-		}
-
-		const char* text;
-
-		cmpU32 length;
-
-		cmpU32 hash;
-	};
-
-
 	// Texture types
-	Keyword KEYWORD_Texture3Du("Texture3Du");
-	Keyword KEYWORD_Texture3Dn("Texture3Dn");
-	Keyword KEYWORD_Texture2Du("Texture2Du");
-	Keyword KEYWORD_Texture2Dn("Texture2Dn");
-	Keyword KEYWORD_Texture1Du("Texture1Du");
-	Keyword KEYWORD_Texture1Dn("Texture1Dn");
+	HashString KEYWORD_Texture3Du("Texture3Du");
+	HashString KEYWORD_Texture3Dn("Texture3Dn");
+	HashString KEYWORD_Texture2Du("Texture2Du");
+	HashString KEYWORD_Texture2Dn("Texture2Dn");
+	HashString KEYWORD_Texture1Du("Texture1Du");
+	HashString KEYWORD_Texture1Dn("Texture1Dn");
 
 	// Texture texel types
-	Keyword KEYWORD_char("char");
-	Keyword KEYWORD_short("short");
-	Keyword KEYWORD_int("int");
-	Keyword KEYWORD_long("long");
-	Keyword KEYWORD_float("float");
-	Keyword KEYWORD_signed("signed");
-	Keyword KEYWORD_unsigned("unsigned");
+	HashString KEYWORD_char("char");
+	HashString KEYWORD_short("short");
+	HashString KEYWORD_int("int");
+	HashString KEYWORD_long("long");
+	HashString KEYWORD_float("float");
+	HashString KEYWORD_signed("signed");
+	HashString KEYWORD_unsigned("unsigned");
+
+	// CUDA/OpenCL keywords
+	HashString KEYWORD_kernel("kernel");
+	HashString KEYWORD_extern("extern");
+	HashString KEYWORD_declspec("__declspec");
+	HashString KEYWORD_global("__global__");
 
 	// ComputeBridge macros
-	Keyword KEYWORD_cmp_kernel_fn("cmp_kernel_fn");
-	Keyword KEYWORD_cmp_texture_type("cmp_texture_type");
-	Keyword KEYWORD_cmp_kernel_texture_decl("cmp_kernel_texture_decl");
-	Keyword KEYWORD_cmp_kernel_texture_decl_comma("cmp_kernel_texture_decl_comma");
-	Keyword KEYWORD_cmp_kernel_texture_global_def("cmp_kernel_texture_global_def");
-	Keyword KEYWORD_cmp_kernel_texture_local_def("cmp_kernel_texture_local_def");
+	HashString KEYWORD_cmp_texture_type("cmp_texture_type");
+	HashString KEYWORD_cmp_kernel_texture_decl("cmp_kernel_texture_decl");
+	HashString KEYWORD_cmp_kernel_texture_decl_comma("cmp_kernel_texture_decl_comma");
+	HashString KEYWORD_cmp_kernel_texture_global_def("cmp_kernel_texture_global_def");
+	HashString KEYWORD_cmp_kernel_texture_local_def("cmp_kernel_texture_local_def");
 
 	// Texture dimensions
-	Keyword KEYWORD_1("1");
-	Keyword KEYWORD_2("2");
-	Keyword KEYWORD_3("3");
+	HashString KEYWORD_1("1");
+	HashString KEYWORD_2("2");
+	HashString KEYWORD_3("3");
 
 	// CUDA read types
-	Keyword KEYWORD_cudaReadModeElementType("cudaReadModeElementType");
-	Keyword KEYWORD_cudaReadModeNormalizedFloat("cudaReadModeNormalizedFloat");
+	HashString KEYWORD_cudaReadModeElementType("cudaReadModeElementType");
+	HashString KEYWORD_cudaReadModeNormalizedFloat("cudaReadModeNormalizedFloat");
 }
 
 
@@ -303,9 +291,9 @@ namespace
 	}
 
 
-	const Keyword* GetDimensionsKeyword(cmpU32 dimensions)
+	const HashString* GetDimensionsKeyword(cmpU32 dimensions)
 	{
-		const Keyword* kw_dimensions = 0;
+		const HashString* kw_dimensions = 0;
 		switch (dimensions)
 		{
 			case 1: kw_dimensions = &KEYWORD_1; break;
@@ -421,7 +409,7 @@ public:
 
 		// Add the texture dimension token
 		m_Dimensions = ref.Dimensions();
-		const Keyword* kw_dimensions = GetDimensionsKeyword(m_Dimensions);
+		const HashString* kw_dimensions = GetDimensionsKeyword(m_Dimensions);
 		m_TypeDeclTokens.Add(cmpToken_Number, kw_dimensions->text, kw_dimensions->length, ref.line);
 		m_TypeDeclTokens.Add(cmpToken_Comma, ref.line);
 
@@ -558,7 +546,7 @@ private:
 
 		// Middle parameters replace parameter and comma
 		// End parameters replace just the parameter
-		const Keyword* keyword = &KEYWORD_cmp_kernel_texture_decl_comma;
+		const HashString* keyword = &KEYWORD_cmp_kernel_texture_decl_comma;
 		if (old_tokens.last->type == cmpToken_RBracket)
 		{
 			keyword = &KEYWORD_cmp_kernel_texture_decl;
@@ -575,7 +563,7 @@ private:
 
 		// Add texture dimensions
 		cmpU32 dimensions = ref.Dimensions();
-		const Keyword* kw_dimensions = GetDimensionsKeyword(dimensions);
+		const HashString* kw_dimensions = GetDimensionsKeyword(dimensions);
 		new_tokens.Add(cmpToken_Number, kw_dimensions->text, kw_dimensions->length, line);
 		new_tokens.Add(cmpToken_Comma, line);
 
