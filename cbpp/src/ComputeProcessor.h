@@ -54,6 +54,8 @@ struct TokenList
 	cmpToken* Add(cmpToken* token);
 	cmpToken* Add(enum cmpTokenType type, const char* start, cmpU32 length, cmpU32 line);
 	cmpToken* Add(enum cmpTokenType type, cmpU32 line);
+	cmpToken* Add(const struct HashString& string, cmpU32 line);
+	cmpToken* Add(const struct String& string, cmpU32 line);
 
 	void DeleteAll();
 

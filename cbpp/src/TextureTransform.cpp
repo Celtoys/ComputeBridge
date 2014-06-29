@@ -347,15 +347,6 @@ namespace
 
 		return node;
 	}
-
-
-	cmpToken* AddToken(TokenList& tokens, const Keyword& keyword, cmpU32 line)
-	{
-		// Create a symbol token using globally persistent keyword text
-		cmpToken* token = tokens.Add(cmpToken_Symbol, keyword.text, keyword.length, line);
-		token->hash = keyword.hash;
-		return token;
-	}
 }
 
 
@@ -392,7 +383,7 @@ public:
 	void AddTypeDeclaration(const TextureRef& ref, int unique_index)
 	{
 		// Start off the macro call
-		AddToken(m_TypeDeclTokens, KEYWORD_cmp_texture_type, ref.line);
+		m_TypeDeclTokens.Add(KEYWORD_cmp_texture_type, ref.line);
 		m_TypeDeclTokens.Add(cmpToken_LBracket, ref.line);
 
 		// Add the texel type name tokens
@@ -416,9 +407,9 @@ public:
 		// Add read type token
 		m_ReadType = ref.ReadType();
 		if (m_ReadType == 'u')
-			AddToken(m_TypeDeclTokens, KEYWORD_cudaReadModeElementType, ref.line);
+			m_TypeDeclTokens.Add(KEYWORD_cudaReadModeElementType, ref.line);
 		else
-			AddToken(m_TypeDeclTokens, KEYWORD_cudaReadModeNormalizedFloat, ref.line);
+			m_TypeDeclTokens.Add(KEYWORD_cudaReadModeNormalizedFloat, ref.line);
 		m_TypeDeclTokens.Add(cmpToken_Comma, ref.line);
 
 		// Generate a unique type name and add as a symbol token
@@ -558,7 +549,7 @@ private:
 
 		// Start of the replacement tokens
 		TokenList new_tokens;
-		AddToken(new_tokens, *keyword, line);
+		new_tokens.Add(*keyword, line);
 		new_tokens.Add(cmpToken_LBracket, line);
 
 		// Add texture dimensions
@@ -589,7 +580,7 @@ private:
 
 		// Start the token list
 		cmpU32 line = function_node->first_token->line;
-		AddToken(var.tokens, KEYWORD_cmp_kernel_texture_global_def, line);
+		var.tokens.Add(KEYWORD_cmp_kernel_texture_global_def, line);
 		var.tokens.Add(cmpToken_LBracket, line);
 		var.tokens.Add(cmpToken_Symbol, m_Name.text, m_Name.length, line);
 		var.tokens.Add(cmpToken_Comma, line);
@@ -624,7 +615,7 @@ private:
 		// Build tokens for the definition
 		TokenList tokens;
 		cmpU32 line = function_node->first_token->line;
-		AddToken(tokens, KEYWORD_cmp_kernel_texture_local_def, line);
+		tokens.Add(KEYWORD_cmp_kernel_texture_local_def, line);
 		tokens.Add(cmpToken_LBracket, line);
 		tokens.Add(cmpToken_Symbol, m_Name.text, m_Name.length, line);
 		tokens.Add(cmpToken_Comma, line);

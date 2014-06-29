@@ -154,6 +154,23 @@ cmpToken* TokenList::Add(enum cmpTokenType type, cmpU32 line)
 }
 
 
+cmpToken* TokenList::Add(const HashString& string, cmpU32 line)
+{
+	// Create a symbol token using globally persistent HashString text
+	cmpToken* token = Add(cmpToken_Symbol, string.text, string.length, line);
+	token->hash = string.hash;
+	return token;
+}
+
+
+cmpToken* TokenList::Add(const String& string, cmpU32 line)
+{
+	cmpToken* token = Add(cmpToken_String, string.text, string.length, line);
+	token->hash = cmpHash(string.text, string.length);
+	return token;
+}
+
+
 void TokenList::DeleteAll()
 {
 	// Move one beyond last for while comparison delete to be inclusive
