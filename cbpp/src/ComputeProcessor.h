@@ -81,6 +81,7 @@ public:
 	const std::string& ExecutableDirectory() const { return m_ExecutableDirectory; }
 	const std::string& InputFilename() const { return m_InputFilename; }
 	const ::Arguments& Arguments() const { return m_Arguments; }
+	cmpNode* RootNode() const { return m_RootNode; }
 
 private:
 	// Copy of command-line arguments
