@@ -3,6 +3,16 @@
 
 #include <cassert>
 #include <string>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+std::string GetExecutableFullPath()
+{
+	char buffer[512];
+	GetModuleFileName(NULL, buffer, sizeof(buffer) - 1);
+	return buffer;
+}
+#endif
 
 
 // List of all registered transform descriptions
@@ -15,6 +25,9 @@ Arguments::Arguments(int argc, const char* argv[])
 	m_Arguments.resize(argc);
 	for (size_t i = 0; i < m_Arguments.size(); i++)
 		m_Arguments[i] = argv[i];
+
+	// Override first argument with complete path to executable
+	m_Arguments[0] = GetExecutableFullPath();
 }
 
 
@@ -166,6 +179,13 @@ ComputeProcessor::ComputeProcessor(const ::Arguments& arguments)
 	, m_ParserCursor(0)
 	, m_RootNode(0)
 {
+	// Parse the executable path looking for its directory
+	m_ExecutableDirectory = m_Arguments[0];
+	size_t sep = m_ExecutableDirectory.rfind('\\');
+	if (sep == -1)
+		sep = m_ExecutableDirectory.rfind('/');
+	if (sep != -1)
+		m_ExecutableDirectory = m_ExecutableDirectory.substr(0, sep);
 }
 
 

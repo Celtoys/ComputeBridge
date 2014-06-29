@@ -75,11 +75,14 @@ public:
 	bool VisitNodes(INodeVisitor* visitor);
 
 	const std::string& Filename() const { return m_Filename; }
+	const std::string& ExecutableDirectory() const { return m_ExecutableDirectory; }
 	const ::Arguments& Arguments() const { return m_Arguments; }
 
 private:
 	// Copy of command-line arguments
 	::Arguments m_Arguments;
+
+	std::string m_ExecutableDirectory;
 
 	// Name of the file being parsed
 	std::string m_Filename;

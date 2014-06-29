@@ -42,11 +42,11 @@ if not defined WINDOWS_SDK_DIR (
 )
 
 
-set CL_FLAGS=
+set CL_FLAGS=/I "%WINDOWS_SDK_DIR%include"
 set LINK_FLAGS=
 if "%1"=="debug" (
-	set CL_FLAGS=/Zi
-	set LINK_FLAGS=/DEBUG
+	set CL_FLAGS=%CL_FLAGS% /Zi
+	set LINK_FLAGS=%LINK_FLAGS% /DEBUG
 )
 
 
