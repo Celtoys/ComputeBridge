@@ -168,7 +168,7 @@ public:
 		try
 		{
 			// Gather all texture references in the statement
-			const char* filename = processor.Filename().c_str();
+			const char* filename = processor.InputFilename().c_str();
 			TokenIterator iterator(node);
 			while (ScanStatementForRefs(filename, node, iterator))
 				;

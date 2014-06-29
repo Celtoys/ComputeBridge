@@ -174,6 +174,7 @@ void TokenList::DeleteAll()
 
 ComputeProcessor::ComputeProcessor(const ::Arguments& arguments)
 	: m_Arguments(arguments)
+	, m_InputFilename(arguments[1])
 	, m_MemoryFile(0)
 	, m_LexerCursor(0)
 	, m_ParserCursor(0)
@@ -217,12 +218,10 @@ ComputeProcessor::~ComputeProcessor()
 }
 
 
-bool ComputeProcessor::ParseFile(const char* filename, bool verbose)
+bool ComputeProcessor::ParseFile()
 {
-	// File already been parsed?
-	if (!m_Filename.empty())
-		return true;
-	m_Filename = filename;
+	const char* filename = m_InputFilename.c_str();
+	bool verbose = m_Arguments.Have("-verbose");
 
 	// Open the input file
 	if (cmpError error = cmpMemoryFile_Create(&m_MemoryFile, filename))

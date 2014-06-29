@@ -70,12 +70,14 @@ public:
 	ComputeProcessor(const Arguments& arguments);
 	~ComputeProcessor();
 
-	bool ParseFile(const char* filename, bool verbose);
+	bool ParseFile();
+
 	cmpError ApplyTransforms();
+
 	bool VisitNodes(INodeVisitor* visitor);
 
-	const std::string& Filename() const { return m_Filename; }
 	const std::string& ExecutableDirectory() const { return m_ExecutableDirectory; }
+	const std::string& InputFilename() const { return m_InputFilename; }
 	const ::Arguments& Arguments() const { return m_Arguments; }
 
 private:
@@ -85,7 +87,7 @@ private:
 	std::string m_ExecutableDirectory;
 
 	// Name of the file being parsed
-	std::string m_Filename;
+	std::string m_InputFilename;
 
 	// Parser runtime
 	cmpMemoryFile* m_MemoryFile;

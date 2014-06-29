@@ -99,7 +99,6 @@ int main(int argc, const char* argv[])
 		printf("\nERROR: Not enough arguments, must be at least the input filename\n");
 		return 1;
 	}
-	std::string filename = args[1];
 
 	// Exit immediately on help request
 	if (args.Have("-h"))
@@ -124,7 +123,7 @@ int main(int argc, const char* argv[])
 		PrintHeader();
 
 	ComputeProcessor processor(args);
-	if (!processor.ParseFile(filename.c_str(), args.Have("-verbose")))
+	if (!processor.ParseFile())
 		return 1;
 
 	cmpError error = processor.ApplyTransforms();
