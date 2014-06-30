@@ -3,6 +3,9 @@
 
 #include <cassert>
 #include <string>
+#include <algorithm>
+
+
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -197,6 +200,7 @@ void TokenList::DeleteAll()
 ComputeProcessor::ComputeProcessor(const ::Arguments& arguments)
 	: m_Arguments(arguments)
 	, m_InputFilename(arguments[1])
+	, m_Target(ComputeTarget_None)
 	, m_MemoryFile(0)
 	, m_LexerCursor(0)
 	, m_ParserCursor(0)
@@ -244,6 +248,19 @@ bool ComputeProcessor::ParseFile()
 {
 	const char* filename = m_InputFilename.c_str();
 	bool verbose = m_Arguments.Have("-verbose");
+
+	// Decide which for which target to emit
+	std::string target = m_Arguments.GetProperty("-target");
+	std::transform(target.begin(), target.end(), target.begin(), tolower);
+	if (target == "cuda")
+		m_Target = ComputeTarget_CUDA;
+	else if (target == "opencl")
+		m_Target = ComputeTarget_OpenCL;
+	else
+	{
+		printf("Valid compute target not specified\n\n");
+		return false;
+	}
 
 	// Open the input file
 	if (cmpError error = cmpMemoryFile_Create(&m_MemoryFile, filename))

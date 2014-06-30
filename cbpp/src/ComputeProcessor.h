@@ -65,6 +65,14 @@ struct TokenList
 };
 
 
+enum ComputeTarget
+{
+	ComputeTarget_None,
+	ComputeTarget_CUDA,
+	ComputeTarget_OpenCL,
+};
+
+
 
 class ComputeProcessor
 {
@@ -81,6 +89,7 @@ public:
 	const std::string& ExecutableDirectory() const { return m_ExecutableDirectory; }
 	const std::string& InputFilename() const { return m_InputFilename; }
 	const ::Arguments& Arguments() const { return m_Arguments; }
+	ComputeTarget Target() const { return m_Target; }
 	cmpNode* RootNode() const { return m_RootNode; }
 
 private:
@@ -91,6 +100,9 @@ private:
 
 	// Name of the file being parsed
 	std::string m_InputFilename;
+
+	// Which target compute language is being rewritten
+	ComputeTarget m_Target;
 
 	// Parser runtime
 	cmpMemoryFile* m_MemoryFile;

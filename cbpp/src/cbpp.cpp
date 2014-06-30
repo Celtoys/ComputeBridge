@@ -38,7 +38,7 @@ void PrintHeader()
 
 void PrintUsage()
 {
-	printf("Usage: cbpp filename [options]\n");
+	printf("Usage: cbpp filename -target <cuda|opencl> [options]\n");
 }
 
 
