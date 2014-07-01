@@ -29,7 +29,6 @@ namespace
 	// CUDA/OpenCL keywords
 	HashString KEYWORD_kernel("kernel");
 	HashString KEYWORD_extern("extern");
-	HashString KEYWORD_declspec("__declspec");
 	HashString KEYWORD_global("__global__");
 
 	// ComputeBridge macros
@@ -326,15 +325,12 @@ namespace
 			return true;
 
 		// Check the CUDA equivalent
-		// extern "C" __declspec(__global__)
+		// extern "C" __global__
 		static cmpTokenType type_match[] =
 		{
 			cmpToken_Symbol,	// extern
 			cmpToken_String,	// "C"
-			cmpToken_Symbol,	// __declspec
-			cmpToken_LBracket,	// (
 			cmpToken_Symbol,	// __global__
-			cmpToken_RBracket,	// )
 		};
 		static const int NB_TOKENS = sizeof(type_match) / sizeof(type_match[0]);
 		static cmpToken* tokens[NB_TOKENS];
@@ -354,9 +350,7 @@ namespace
 			return false;
 		if (tokens[1]->length != 3 || tokens[1]->start[1] != 'C')
 			return false;
-		if (tokens[2]->hash != KEYWORD_declspec.hash)
-			return false;
-		if (tokens[4]->hash != KEYWORD_global.hash)
+		if (tokens[2]->hash != KEYWORD_global.hash)
 			return false;
 
 		return true;
