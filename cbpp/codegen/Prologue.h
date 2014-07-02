@@ -40,6 +40,12 @@
 	#define cmp_kernel_texture_global_def(type, global_name)
 	#define cmp_kernel_texture_local_def(type, local_name, global_name)
 
+	#define cmp_surface_type(channels, name) typedef image##channels##d_t name
+	#define cmp_kernel_surface_decl(channels, name) image##channels##d_t name
+	#define cmp_kernel_surface_decl_comma(channels, name) cmp_kernel_surface_decl(channels, name),
+	#define cmp_kernel_surface_global_def(type, global_name)
+	#define cmp_kernel_surface_local_def(type, local_name, global_name)
+
 #else
 
 	#define cmp_texture_type(type, channels, read, name) typedef texture<type, channels, read> name
@@ -47,6 +53,12 @@
 	#define cmp_kernel_texture_decl_comma(channels, name)
 	#define cmp_kernel_texture_global_def(type, global_name) type global_name
 	#define cmp_kernel_texture_local_def(type, local_name, global_name) type local_name = global_name
+
+	#define cmp_surface_type(channels, name) typedef surface<void, channels> name
+	#define cmp_kernel_surface_decl(channels, name)
+	#define cmp_kernel_surface_decl_comma(channels, name)
+	#define cmp_kernel_surface_global_def(type, global_name) type global_name
+	#define cmp_kernel_surface_local_def(type, local_name, global_name) type local_name = global_name
 
 #endif
 

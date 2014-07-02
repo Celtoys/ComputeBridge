@@ -131,16 +131,21 @@ struct TokenIterator
 	//
 	// Moves the iterator along to the first token that matches the predicate.
 	// This will return a pointer to the located token.
-	// If the token can't be found, the iterator will be moved to the end of the node and return NULL.
+	// If the token can't be found, NULL is returned the iterator is unmoved.
 	//
 	template <typename MATCH>
 	cmpToken* SeekToken(const MATCH& match)
 	{
-		while (token < last_token)
+		cmpToken* cur_token = token;
+		while (cur_token < last_token)
 		{
-			if (match(*token))
-				return token;
-			token = token->next;
+			if (match(*cur_token))
+			{
+				token = cur_token;
+				return cur_token;
+			}
+			
+			cur_token = cur_token->next;
 		}
 
 		return 0;

@@ -17,6 +17,11 @@ namespace
 	HashString KEYWORD_Texture1Du("Texture1Du");
 	HashString KEYWORD_Texture1Dn("Texture1Dn");
 
+	// Surface types
+	HashString KEYWORD_Surface3D("Surface3D");
+	HashString KEYWORD_Surface2D("Surface2D");
+	HashString KEYWORD_Surface1D("Surface1D");
+
 	// Texture texel types
 	HashString KEYWORD_char("char");
 	HashString KEYWORD_short("short");
@@ -37,6 +42,11 @@ namespace
 	HashString KEYWORD_cmp_kernel_texture_decl_comma("cmp_kernel_texture_decl_comma");
 	HashString KEYWORD_cmp_kernel_texture_global_def("cmp_kernel_texture_global_def");
 	HashString KEYWORD_cmp_kernel_texture_local_def("cmp_kernel_texture_local_def");
+	HashString KEYWORD_cmp_surface_type("cmp_surface_type");
+	HashString KEYWORD_cmp_kernel_surface_decl("cmp_kernel_surface_decl");
+	HashString KEYWORD_cmp_kernel_surface_decl_comma("cmp_kernel_surface_decl_comma");
+	HashString KEYWORD_cmp_kernel_surface_global_def("cmp_kernel_surface_global_def");
+	HashString KEYWORD_cmp_kernel_surface_local_def("cmp_kernel_surface_local_def");
 
 	// Texture dimensions
 	HashString KEYWORD_1("1");
@@ -49,6 +59,14 @@ namespace
 }
 
 
+enum RefType
+{
+	RefType_None = 0,
+	RefType_Texture = 't',
+	RefType_Surface = 's',
+};
+
+
 
 //
 // Reference to a texture type in the source file.
@@ -57,7 +75,8 @@ namespace
 struct TextureRef
 {
 	TextureRef()
-		: node(0)
+		: type(RefType_None)
+		, node(0)
 		, position(0)
 		, line(0)
 		, keyword_token(0)
@@ -89,17 +108,21 @@ struct TextureRef
 		return read_type;
 	}
 
+	// Is this a texture/surface reference?
+	RefType type;
+
 	// Pointer to the statement, typedef or function parameter list
 	cmpNode* node;
 
-	// Position/line the texture reference was found on
+	// Position/line the reference was found on
 	cmpU32 position;
 	cmpU32 line;
 
-	// Texture keyword
+	// Texture/surface keyword
 	cmpToken* keyword_token;
 
 	// Texel type keyword that may consist of two tokens, e.g. "unsigned int"
+	// Doesn't exist for surfaces
 	cmpToken* type_token;
 	cmpU32 nb_type_tokens;
 
@@ -110,7 +133,7 @@ struct TextureRef
 	cmpToken* name_token;
 	String name;
 
-	// Unique key specific to the type of texture reference
+	// Unique key specific to the type of reference
 	cmpU32 type_key;
 };
 
@@ -144,6 +167,11 @@ public:
 			KEYWORD_Texture2Du.hash,
 			KEYWORD_Texture1Dn.hash,
 			KEYWORD_Texture1Du.hash);
+
+		m_SurfaceMatches = MatchHashes(
+			KEYWORD_Surface3D.hash,
+			KEYWORD_Surface2D.hash,
+			KEYWORD_Surface1D.hash);
 
 		m_TypeMatches = MatchHashes(
 			KEYWORD_char.hash,
@@ -192,11 +220,26 @@ private:
 	bool ScanStatementForRefs(const char* filename, cmpNode& node, TokenIterator& iterator)
 	{
 		// Search for any of the texture keywords
-		if (iterator.SeekToken(m_TextureMatches) == 0)
-			return false;
+		if (iterator.SeekToken(m_TextureMatches))
+		{
+			AddTextureRef(filename, node, iterator);
+			return true;
+		}
+		if (iterator.SeekToken(m_SurfaceMatches))
+		{
+			AddSurfaceRef(filename, node, iterator);
+			return true;
+		}
 
+		return false;
+	}
+
+
+	void AddTextureRef(const char* filename, cmpNode& node, TokenIterator& iterator)
+	{
 		// Start the texture reference off with its node/token and token hash
 		TextureRef ref;
+		ref.type = RefType_Texture;
 		ref.node = &node;
 		ref.position = (cmpU32)iterator.token->start;
 		ref.line = iterator.token->line;
@@ -253,11 +296,41 @@ private:
 		// Record the texture reference
 		ref.type_key = combined_hash;
 		m_TextureRefsMap[combined_hash].push_back(ref);
-		return true;
+	}
+
+
+	void AddSurfaceRef(const char* filename, cmpNode& node, TokenIterator& iterator)
+	{
+		// Start the surface reference off with its node/token and token hash
+		TextureRef ref;
+		ref.type = RefType_Surface;
+		ref.node = &node;
+		ref.position = (cmpU32)iterator.token->start;
+		ref.line = iterator.token->line;
+		ref.keyword_token = iterator.token;
+		ref.end_of_type_token = iterator.token;
+		ref.type_key = iterator.token->hash;
+		++iterator;
+
+		// Ensure that function parameters have a name
+		if (node.type == cmpNode_FunctionParams)
+		{
+			if (iterator.ExpectToken(MatchTypes(cmpToken_Symbol)) == 0)
+				throw cmpError_Create("%s(%d): Expecting function parameter to have a name", filename, iterator.token->line);
+			ref.name_token = iterator.token;
+			++iterator;
+
+			// Allocate a copy of the string for use later
+			ref.name = String(ref.name_token->start, ref.name_token->length);
+		}
+
+		// Record the surface reference
+		m_TextureRefsMap[ref.type_key].push_back(ref);
 	}
 
 
 	MatchHashes m_TextureMatches;
+	MatchHashes m_SurfaceMatches;
 	MatchHashes m_TypeMatches;
 
 	TextureRefsMap& m_TextureRefsMap;
@@ -422,47 +495,12 @@ public:
 
 	void AddTypeDeclaration(const TextureRef& ref, int unique_index)
 	{
-		// Start off the macro call
-		m_TypeDeclTokens.Add(KEYWORD_cmp_texture_type, ref.line);
-		m_TypeDeclTokens.Add(cmpToken_LBracket, ref.line);
+		if (ref.type == RefType_Texture)
+			return AddTextureTypeDeclaration(ref, unique_index);
+		if (ref.type == RefType_Surface)
+			return AddSurfaceTypeDeclaration(ref, unique_index);
 
-		// Add the texel type name tokens
-		const cmpToken* type_token = ref.type_token;
-		assert(type_token != 0);
-		m_TypeDeclTokens.Add(cmpToken_Symbol, type_token->start, type_token->length, ref.line);
-		if (ref.nb_type_tokens > 1)
-		{
-			type_token = type_token->next;
-			assert(type_token != 0);
-			m_TypeDeclTokens.Add(cmpToken_Symbol, type_token->start, type_token->length, ref.line);
-		}
-		m_TypeDeclTokens.Add(cmpToken_Comma, ref.line);
-
-		// Add the texture dimension token
-		m_Dimensions = ref.Dimensions();
-		const HashString* kw_dimensions = GetDimensionsKeyword(m_Dimensions);
-		m_TypeDeclTokens.Add(cmpToken_Number, kw_dimensions->text, kw_dimensions->length, ref.line);
-		m_TypeDeclTokens.Add(cmpToken_Comma, ref.line);
-
-		// Add read type token
-		m_ReadType = ref.ReadType();
-		if (m_ReadType == 'u')
-			m_TypeDeclTokens.Add(KEYWORD_cudaReadModeElementType, ref.line);
-		else
-			m_TypeDeclTokens.Add(KEYWORD_cudaReadModeNormalizedFloat, ref.line);
-		m_TypeDeclTokens.Add(cmpToken_Comma, ref.line);
-
-		// Generate a unique type name and add as a symbol token
-		char type_name[64];
-		sprintf(type_name, "__TextureTypeName_%d__", unique_index);
-		m_Name = String(type_name);
-		m_TypeDeclTokens.Add(cmpToken_Symbol, m_Name.text, m_Name.length, ref.line);
-
-		// Close the statement
-		m_TypeDeclTokens.Add(cmpToken_RBracket, ref.line);
-		m_TypeDeclTokens.Add(cmpToken_SemiColon, ref.line);
-
-		AddNodeBeforeContainerParent(m_TypeDeclTokens, ref.node);
+		assert(false && "Invalid RefType");
 	}
 
 
@@ -541,6 +579,86 @@ private:
 	TextureType& operator = (const TextureType&);
 
 
+	void AddTextureTypeDeclaration(const TextureRef& ref, int unique_index)
+	{
+		// Add cmp_texture_type(type, channels, read, name) macro call
+
+		m_TypeDeclTokens.Add(KEYWORD_cmp_texture_type, ref.line);
+		m_TypeDeclTokens.Add(cmpToken_LBracket, ref.line);
+
+		AddTexelTypeNameTokens(ref);
+		AddTextureDimensionsToken(ref);
+		AddReadTypeToken(ref);
+		AddUniqueNameToken(ref, unique_index, "Texture");
+
+		m_TypeDeclTokens.Add(cmpToken_RBracket, ref.line);
+		m_TypeDeclTokens.Add(cmpToken_SemiColon, ref.line);
+
+		AddNodeBeforeContainerParent(m_TypeDeclTokens, ref.node);
+	}
+
+
+	void AddSurfaceTypeDeclaration(const TextureRef& ref, int unique_index)
+	{
+		// Add cmp_surface_type(channels, name) macro call
+
+		m_TypeDeclTokens.Add(KEYWORD_cmp_surface_type, ref.line);
+		m_TypeDeclTokens.Add(cmpToken_LBracket, ref.line);
+
+		AddTextureDimensionsToken(ref);
+		AddUniqueNameToken(ref, unique_index, "Surface");
+
+		m_TypeDeclTokens.Add(cmpToken_RBracket, ref.line);
+		m_TypeDeclTokens.Add(cmpToken_SemiColon, ref.line);
+
+		AddNodeBeforeContainerParent(m_TypeDeclTokens, ref.node);
+	}
+
+
+	void AddTexelTypeNameTokens(const TextureRef& ref)
+	{
+		const cmpToken* type_token = ref.type_token;
+		assert(type_token != 0);
+		m_TypeDeclTokens.Add(cmpToken_Symbol, type_token->start, type_token->length, ref.line);
+		if (ref.nb_type_tokens > 1)
+		{
+			type_token = type_token->next;
+			assert(type_token != 0);
+			m_TypeDeclTokens.Add(cmpToken_Symbol, type_token->start, type_token->length, ref.line);
+		}
+		m_TypeDeclTokens.Add(cmpToken_Comma, ref.line);
+	}
+
+
+	void AddReadTypeToken(const TextureRef& ref)
+	{
+		m_ReadType = ref.ReadType();
+		if (m_ReadType == 'u')
+			m_TypeDeclTokens.Add(KEYWORD_cudaReadModeElementType, ref.line);
+		else
+			m_TypeDeclTokens.Add(KEYWORD_cudaReadModeNormalizedFloat, ref.line);
+		m_TypeDeclTokens.Add(cmpToken_Comma, ref.line);
+	}
+
+
+	void AddTextureDimensionsToken(const TextureRef& ref)
+	{
+		m_Dimensions = ref.Dimensions();
+		const HashString* kw_dimensions = GetDimensionsKeyword(m_Dimensions);
+		m_TypeDeclTokens.Add(cmpToken_Number, kw_dimensions->text, kw_dimensions->length, ref.line);
+		m_TypeDeclTokens.Add(cmpToken_Comma, ref.line);
+	}
+
+
+	void AddUniqueNameToken(const TextureRef& ref, int unique_index, const char* name)
+	{
+		// Generate a unique type name and add as a symbol token
+		char type_name[64];
+		sprintf(type_name, "__%sTypeName_%d__", name, unique_index);
+		m_Name = String(type_name);
+		m_TypeDeclTokens.Add(cmpToken_Symbol, m_Name.text, m_Name.length, ref.line);
+	}
+
 
 	void AddNodeBeforeContainerParent(const TokenList& tokens, cmpNode* child_node)
 	{
@@ -577,10 +695,12 @@ private:
 
 		// Middle parameters replace parameter and comma
 		// End parameters replace just the parameter
-		const HashString* keyword = &KEYWORD_cmp_kernel_texture_decl_comma;
+		const HashString* keyword = (ref.type == RefType_Texture) ? 
+			&KEYWORD_cmp_kernel_texture_decl_comma : &KEYWORD_cmp_kernel_surface_decl_comma;
 		if (old_tokens.last->type == cmpToken_RBracket)
 		{
-			keyword = &KEYWORD_cmp_kernel_texture_decl;
+			keyword = (ref.type == RefType_Texture) ?
+				&KEYWORD_cmp_kernel_texture_decl : &KEYWORD_cmp_kernel_surface_decl;
 			old_tokens.last = ref.name_token;
 		}
 
@@ -620,7 +740,9 @@ private:
 
 		// Start the token list
 		cmpU32 line = function_node->first_token->line;
-		var.tokens.Add(KEYWORD_cmp_kernel_texture_global_def, line);
+		HashString keyword = (ref.type == RefType_Texture) ?
+			KEYWORD_cmp_kernel_texture_global_def : KEYWORD_cmp_kernel_surface_global_def;
+		var.tokens.Add(keyword, line);
 		var.tokens.Add(cmpToken_LBracket, line);
 		var.tokens.Add(cmpToken_Symbol, m_Name.text, m_Name.length, line);
 		var.tokens.Add(cmpToken_Comma, line);
@@ -628,7 +750,8 @@ private:
 		// Finish off with a unique name for variable
 		std::string function_name = GetFunctionName(function_node);
 		char texture_var[64];
-		sprintf(texture_var, "__TextureVar_%s_%s__", function_name.c_str(), ref.name.text);
+		const char* name = (ref.type == RefType_Texture) ? "Texture" : "Surface";
+		sprintf(texture_var, "__%sVar_%s_%s__", name, function_name.c_str(), ref.name.text);
 		var.ref_name = ref.name.text;
 		var.function_name = function_name;
 		var.global_name = String(texture_var);
@@ -655,7 +778,9 @@ private:
 		// Build tokens for the definition
 		TokenList tokens;
 		cmpU32 line = function_node->first_token->line;
-		tokens.Add(KEYWORD_cmp_kernel_texture_local_def, line);
+		HashString keyword = (ref.type == RefType_Texture) ?
+			KEYWORD_cmp_kernel_texture_local_def : KEYWORD_cmp_kernel_surface_local_def;
+		tokens.Add(keyword, line);
 		tokens.Add(cmpToken_LBracket, line);
 		tokens.Add(cmpToken_Symbol, m_Name.text, m_Name.length, line);
 		tokens.Add(cmpToken_Comma, line);
@@ -881,11 +1006,10 @@ private:
 				fwrite(&var->global_name.length, 1, sizeof(var->global_name.length), fp);
 				fwrite(var->global_name.text, 1, var->global_name.length, fp);
 
-				// Write dimension count
+				// Write type info
+				fwrite(&ref.type, 1, 1, fp);
 				cmpU32 dimensions = type->Dimensions();
 				fwrite(&dimensions, 1, sizeof(dimensions), fp);
-
-				// Write read type
 				char read_type = type->ReadType();
 				fwrite(&read_type, 1, 1, fp);
 			}
