@@ -31,7 +31,7 @@ class PrologueTransform : public ITransform
 		// Add full path to the prologue header file
 		std::string prologue_path = "\"";
 		prologue_path += processor.ExecutableDirectory();
-		prologue_path += "/../codegen/Prologue.h\"";
+		prologue_path += "/../codegen/Prologue.cuh\"";
 		m_ProloguePath = prologue_path;
 		tokens.Add(m_ProloguePath, 0);
 
