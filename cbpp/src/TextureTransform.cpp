@@ -81,7 +81,7 @@ struct TextureRef
 		, line(0)
 		, keyword_token(0)
 		, type_token(0)
-		, nb_type_tokens(0)
+		, last_type_token(0)
 		, end_of_type_token(0)
 		, name_token(0)
 		, type_key(0)
@@ -124,7 +124,7 @@ struct TextureRef
 	// Texel type keyword that may consist of two tokens, e.g. "unsigned int"
 	// Doesn't exist for surfaces
 	cmpToken* type_token;
-	cmpU32 nb_type_tokens;
+	cmpToken* last_type_token;
 
 	// Points to a token one place beyond the last token that defines the type
 	cmpToken* end_of_type_token;
@@ -257,7 +257,7 @@ private:
 		if (type_token_0 == 0)
 			throw cmpError_Create("%s(%d): Expecting a type name", filename, iterator.token->line);
 		ref.type_token = type_token_0;
-		ref.nb_type_tokens = 1;
+		ref.last_type_token = type_token_0->next;
 		combined_hash = cmpHash_Combine(combined_hash, type_token_0->hash);
 		++iterator;
 
@@ -270,7 +270,7 @@ private:
 			if (type_token_1->hash == KEYWORD_signed.hash || type_token_1->hash == KEYWORD_unsigned.hash)
 				throw cmpError_Create("%s(%d): Not expecting unsigned/signed twice", filename, iterator.token->line);
 
-			ref.nb_type_tokens = 2;
+			ref.last_type_token = type_token_1->next;
 			combined_hash = cmpHash_Combine(combined_hash, type_token_1->hash);
 			++iterator;
 		}
@@ -617,15 +617,14 @@ private:
 
 	void AddTexelTypeNameTokens(const TextureRef& ref)
 	{
-		const cmpToken* type_token = ref.type_token;
-		assert(type_token != 0);
-		m_TypeDeclTokens.Add(cmpToken_Symbol, type_token->start, type_token->length, ref.line);
-		if (ref.nb_type_tokens > 1)
+		// Add a copy of the type tokens
+		const cmpToken* token = ref.type_token;
+		while (token != ref.last_type_token)
 		{
-			type_token = type_token->next;
-			assert(type_token != 0);
-			m_TypeDeclTokens.Add(cmpToken_Symbol, type_token->start, type_token->length, ref.line);
+			m_TypeDeclTokens.Add(token->type, token->start, token->length, ref.line);
+			token = token->next;
 		}
+		
 		m_TypeDeclTokens.Add(cmpToken_Comma, ref.line);
 	}
 
