@@ -31,12 +31,8 @@ namespace
 	HashString KEYWORD_signed("signed");
 	HashString KEYWORD_unsigned("unsigned");
 
-	// CUDA/OpenCL keywords
-	HashString KEYWORD_kernel("kernel");
-	HashString KEYWORD_extern("extern");
-	HashString KEYWORD_global("__global__");
-
 	// ComputeBridge macros
+	HashString KEYWORD_cmp_kernel_fn("cmp_kernel_fn");
 	HashString KEYWORD_cmp_texture_type("cmp_texture_type");
 	HashString KEYWORD_cmp_kernel_texture_decl("cmp_kernel_texture_decl");
 	HashString KEYWORD_cmp_kernel_texture_decl_comma("cmp_kernel_texture_decl_comma");
@@ -382,51 +378,12 @@ namespace
 		if (node->type != cmpNode_FunctionDefn && node->type != cmpNode_FunctionDecl)
 			return false;
 
-		//
-		// Looking for these starting tokens:
-		//
-		// 		kernel					[ OpenCL AFTER pre-processor run ]
-		// 		extern "C" __global__	[ CUDA AFTER pre-processor run ]
-		//
 		TokenIterator ti(*node);
 		ti.SkipWhitespace();
 		if (ti.token == 0)
 			return false;
 
-		// Check for OpenCL
-		if (ti.token->hash == KEYWORD_kernel.hash)
-			return true;
-
-		// Check the CUDA equivalent
-		// extern "C" __global__
-		static cmpTokenType type_match[] =
-		{
-			cmpToken_Symbol,	// extern
-			cmpToken_String,	// "C"
-			cmpToken_Symbol,	// __global__
-		};
-		static const int NB_TOKENS = sizeof(type_match) / sizeof(type_match[0]);
-		static cmpToken* tokens[NB_TOKENS];
-
-		// Match all token types
-		for (int i = 0; i < NB_TOKENS; i++)
-		{
-			cmpToken* token = ti.ExpectToken(MatchTypes(type_match[i]));
-			if (ti.token == 0)
-				return false;
-			tokens[i] = token;
-			++ti;
-		}
-
-		// Ensure the token contents match
-		if (tokens[0]->hash != KEYWORD_extern.hash)
-			return false;
-		if (tokens[1]->length != 3 || tokens[1]->start[1] != 'C')
-			return false;
-		if (tokens[2]->hash != KEYWORD_global.hash)
-			return false;
-
-		return true;
+		return ti.token->hash == KEYWORD_cmp_kernel_fn.hash;
 	}
 
 
