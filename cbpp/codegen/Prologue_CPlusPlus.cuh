@@ -51,6 +51,15 @@ namespace cmp {
 
 
 //
+// Basic type aliases
+//
+typedef unsigned char uchar;
+typedef unsigned short ushort;
+typedef unsigned int uint;
+typedef unsigned long ulong;
+
+
+//
 // Implementation of vector kernel types
 // Use macros instead of templates so that the types can be reflected
 //
@@ -84,7 +93,21 @@ tuple2(double, double2);
 tuple3(double, double3);
 tuple4(double, double4);
 
-typedef unsigned int uint;
+tuple2(char, char2);
+tuple3(char, char3);
+tuple4(char, char4);
+
+tuple2(uchar, uchar2);
+tuple3(uchar, uchar3);
+tuple4(uchar, uchar4);
+
+tuple2(short, short2);
+tuple3(short, short3);
+tuple4(short, short4);
+
+tuple2(ushort, ushort2);
+tuple3(ushort, ushort3);
+tuple4(ushort, ushort4);
 
 tuple2(int, int2);
 tuple3(int, int3);
@@ -93,6 +116,14 @@ tuple4(int, int4);
 tuple2(uint, uint2);
 tuple3(uint, uint3);
 tuple4(uint, uint4);
+
+tuple2(long, long2);
+tuple3(long, long3);
+tuple4(long, long4);
+
+tuple2(ulong, ulong2);
+tuple3(ulong, ulong3);
+tuple4(ulong, ulong4);
 
 
 //
