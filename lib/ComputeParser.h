@@ -92,23 +92,6 @@ const char* cmpError_Text(const cmpError* error);
 
 
 //
-// --- cmpMemoryFile -----------------------------------------------------------------------------------
-// Stores an entire file in memory for reading by the lexer.
-// Use of this is optional as you can provide your own data source to the lexer.
-//
-typedef struct cmpMemoryFile cmpMemoryFile;
-
-cmpError cmpMemoryFile_Create(cmpMemoryFile** memory_file, const char* filename);
-
-void cmpMemoryFile_Destroy(cmpMemoryFile* memory_file);
-
-const char* cmpMemoryFile_Data(cmpMemoryFile* memory_file);
-
-cmpU32 cmpMemoryFile_Size(cmpMemoryFile* memory_file);
-
-
-
-//
 // --- cmpLexerCursor -----------------------------------------------------------------------------------
 // Used by the lexer to track its position and error state in a file.
 //

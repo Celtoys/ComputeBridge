@@ -14,6 +14,7 @@
 // limitations under the License.
 //
 
+#include "Base.h"
 #include "ComputeProcessor.h"
 
 #include <string>
@@ -54,35 +55,27 @@ void PrintHelp()
 struct EmitFile : public INodeVisitor
 {
 	EmitFile(const char* filename)
-		: fp(0)
-		, last_error(cmpError_CreateOK())
+		: last_error(cmpError_CreateOK())
 	{
-		fp = fopen(filename, "wb");
-		if (fp == 0)
+		if (!Open(file, filename, "wb"))
 			last_error = cmpError_Create("Couldn't open file '%s' for writing", filename);
-	}
-
-	~EmitFile()
-	{
-		if (fp != 0)
-			fclose(fp);
 	}
 
 	bool Visit(const ComputeProcessor&, cmpNode& node)
 	{
-		if (fp == 0)
+		if (file.fp == 0)
 			return false;
 
 		for (TokenIterator i(node); i; ++i)
 		{
 			const cmpToken& token = *i.token;
-			fprintf(fp, "%.*s", token.length, token.start);
+			fprintf(file.fp, "%.*s", token.length, token.start);
 		}
 
 		return true;
 	}
 
-	FILE* fp;
+	File file;
 
 	cmpError last_error;
 };
@@ -118,11 +111,20 @@ int main(int argc, const char* argv[])
 		return 1;
 	}
 
+	// Load the input file
+	std::string input_filename = args[1];
+	std::vector<char> input_file;
+	if (!LoadFileData(input_filename.c_str(), input_file))
+	{
+		printf("\nERROR: Failed to open input file %s\n", input_filename.c_str());
+		return 1;
+	}
+
 	// Suppress header?
 	if (!args.Have("-noheader"))
 		PrintHeader();
 
-	ComputeProcessor processor(args);
+	ComputeProcessor processor(args, input_filename, input_file);
 	if (!processor.ParseFile())
 		return 1;
 

@@ -197,11 +197,11 @@ void TokenList::DeleteAll()
 }
 
 
-ComputeProcessor::ComputeProcessor(const ::Arguments& arguments)
+ComputeProcessor::ComputeProcessor(const ::Arguments& arguments, const std::string& input_filename, const std::vector<char>& file_data)
 	: m_Arguments(arguments)
-	, m_InputFilename(arguments[1])
+	, m_InputFilename(input_filename)
+	, m_FileData(file_data)
 	, m_Target(ComputeTarget_None)
-	, m_MemoryFile(0)
 	, m_LexerCursor(0)
 	, m_ParserCursor(0)
 	, m_RootNode(0)
@@ -239,8 +239,6 @@ ComputeProcessor::~ComputeProcessor()
 		cmpParserCursor_Destroy(m_ParserCursor);
 	if (m_LexerCursor != 0)
 		cmpLexerCursor_Destroy(m_LexerCursor);
-	if (m_MemoryFile != 0)
-		cmpMemoryFile_Destroy(m_MemoryFile);
 }
 
 
@@ -262,15 +260,8 @@ bool ComputeProcessor::ParseFile()
 		return false;
 	}
 
-	// Open the input file
-	if (cmpError error = cmpMemoryFile_Create(&m_MemoryFile, filename))
-	{
-		printf("Error opening input file: %s\n\n", cmpError_Text(&error));
-		return false;
-	}
-
 	// Build a list of tokens
-	if (cmpError error = cmpLexerCursor_Create(&m_LexerCursor, cmpMemoryFile_Data(m_MemoryFile), cmpMemoryFile_Size(m_MemoryFile), verbose))
+	if (cmpError error = cmpLexerCursor_Create(&m_LexerCursor, m_FileData.data(), m_FileData.size(), verbose))
 	{
 		printf("Error creating lexer cursor: %s\n\n", cmpError_Text(&error));
 		return false;

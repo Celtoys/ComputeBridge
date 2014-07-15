@@ -77,7 +77,7 @@ enum ComputeTarget
 class ComputeProcessor
 {
 public:
-	ComputeProcessor(const Arguments& arguments);
+	ComputeProcessor(const Arguments& arguments, const std::string& input_filename, const std::vector<char>& file_data);
 	~ComputeProcessor();
 
 	bool ParseFile();
@@ -96,16 +96,18 @@ private:
 	// Copy of command-line arguments
 	::Arguments m_Arguments;
 
-	std::string m_ExecutableDirectory;
-
 	// Name of the file being parsed
 	std::string m_InputFilename;
+
+	// Copy of the input file data so that its lifetime can be managed here
+	std::vector<char> m_FileData;
+
+	std::string m_ExecutableDirectory;
 
 	// Which target compute language is being rewritten
 	ComputeTarget m_Target;
 
 	// Parser runtime
-	cmpMemoryFile* m_MemoryFile;
 	cmpLexerCursor* m_LexerCursor;
 	cmpParserCursor* m_ParserCursor;
 
