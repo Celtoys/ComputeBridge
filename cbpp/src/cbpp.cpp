@@ -114,7 +114,7 @@ int main(int argc, const char* argv[])
 	{
 		PrintHeader();
 		PrintUsage();
-		printf("\nERROR: No output filename specified");
+		printf("\nERROR: No output filename specified\n");
 		return 1;
 	}
 
