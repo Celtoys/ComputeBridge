@@ -27,4 +27,25 @@ bool LoadFileData(const char* filename, std::vector<char>& file_data);
 
 
 
+//
+// Searchable command-line arguments that can be shared between transforms.
+// Doesn't require any form of option configuration so trades slower parsing for flexibility.
+//
+class Arguments
+{
+public:
+	Arguments(int argc, const char* argv[]);
+
+	size_t GetIndexOf(const std::string& arg, int occurrence = 0) const;
+	bool Have(const std::string& arg) const;
+	std::string GetProperty(const std::string& arg, int occurrence = 0) const;
+	size_t Count() const;
+
+	const std::string& operator [] (int index) const;
+
+private:
+	std::vector<std::string> m_Arguments;
+};
+
+
 #endif
