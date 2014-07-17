@@ -16,6 +16,7 @@
 
 #include "Base.h"
 #include "ComputeProcessor.h"
+#include "fcpp.h"
 
 #include <string>
 
@@ -81,6 +82,139 @@ struct EmitFile : public INodeVisitor
 };
 
 
+struct PPInfo
+{
+	PPInfo(const std::vector<char>& in_data)
+		: in_data(in_data)
+		, read_pos(0)
+	{
+	}
+
+	const std::vector<char>& in_data;
+	size_t read_pos;
+
+	std::vector<char> out_data;
+};
+
+
+char* PPInput(char* buffer, int size, void* user_data)
+{
+	PPInfo& pp_info(*(PPInfo*)user_data);
+
+	// Read until EOF/EOL or not enough output bytes left
+	int write_pos = 0;
+	while (write_pos < size - 1)
+	{
+		// Check for EOF
+		if (pp_info.read_pos >= pp_info.in_data.size())
+			return NULL;
+
+		char c = pp_info.in_data[pp_info.read_pos++];
+
+		// Don't add CR to the buffer as fcpp doesn't recognise that as white-space and will error
+		// All characters other than that go into the buffer (including EOL)
+		if (c != '\r')
+			buffer[write_pos++] = c;
+
+		if (c == '\n')
+			break;
+	}
+
+	// NULL terminate
+	buffer[write_pos] = 0;
+
+	return buffer;
+}
+
+
+void PPOutput(int c, void* user_data)
+{
+	PPInfo& pp_info(*(PPInfo*)user_data);
+	pp_info.out_data.push_back(c);
+}
+
+
+void PPError(void* user_data, char* format, va_list args)
+{
+	vfprintf(stdout, format, args);
+}
+
+
+std::vector<char> PreProcessFile(const std::string& filename, const std::vector<char>& in_data)
+{
+	fppTag tags[20];
+	fppTag* tagptr = tags;
+	std::string include;
+
+	// Create/set the user data
+	PPInfo pp_info(in_data);
+	tagptr->tag = FPPTAG_USERDATA;
+	tagptr->data = &pp_info;
+	tagptr++;
+
+	// Set the input function
+	tagptr->tag = FPPTAG_INPUT;
+	tagptr->data = PPInput;
+	tagptr++;
+
+	// Set the output function
+	tagptr->tag = FPPTAG_OUTPUT;
+	tagptr->data = PPOutput;
+	tagptr++;
+
+	// Set the error function
+	tagptr->tag = FPPTAG_ERROR;
+	tagptr->data = PPError;
+	tagptr++;
+
+	// Set the input filename
+	tagptr->tag = FPPTAG_INPUT_NAME;
+	tagptr->data = (void*)filename.data();
+	tagptr++;
+
+	// Don't display version information
+	tagptr->tag = FPPTAG_SHOWVERSION;
+	tagptr->data = (void*)FALSE;
+	tagptr++;
+
+	// Point to the end of the filename and scan back, looking for the first path separator
+	const char* fptr = filename.data() + filename.length() - 1;
+	while (fptr != filename && *fptr != '/' && *fptr != '\\')
+		fptr--;
+
+	// Was a path specified in the filename?
+	if (fptr != filename)
+	{
+		int path_length = fptr - filename.data();
+		include = std::string(filename, 0, path_length);
+
+		// Replace back-slash with forward-slash as fcpp can't handle it
+		for (size_t i = 0; i < include.length(); i++)
+		{
+			if (include[i] == '\\')
+				include[i] = '/';
+		}
+
+		// Requirement for FPPTAG_INCLUDE_DIR
+		include += '/';
+
+		// Add the location of the filename as an include directory
+		tagptr->tag = FPPTAG_INCLUDE_DIR;
+		tagptr->data = (void*)include.data();
+		tagptr++;
+	}
+
+	// End the tag list
+	tagptr->tag = FPPTAG_END;
+	tagptr->data = 0;
+	tagptr++;	
+
+	fppPreProcess(tags);
+
+	return pp_info.out_data;
+}
+
+
 int main(int argc, const char* argv[])
 {
 	// Build arguments object, expecting a filename
@@ -111,6 +245,10 @@ int main(int argc, const char* argv[])
 		return 1;
 	}
 
+	// Suppress header?
+	if (!args.Have("-noheader"))
+		PrintHeader();
+
 	// Load the input file
 	std::string input_filename = args[1];
 	std::vector<char> input_file;
@@ -120,9 +258,7 @@ int main(int argc, const char* argv[])
 		return 1;
 	}
 
-	// Suppress header?
-	if (!args.Have("-noheader"))
-		PrintHeader();
+	input_file = PreProcessFile(input_filename, input_file);
 
 	ComputeProcessor processor(args, input_filename, input_file);
 	if (!processor.ParseFile())

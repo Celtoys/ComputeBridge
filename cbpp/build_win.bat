@@ -61,5 +61,6 @@ cl.exe %SRC%/cbpp.cpp /EHsc /nologo /Fo%OUT%/cbpp.obj /c %CL_FLAGS%
 cl.exe %SRC%/ComputeProcessor.cpp /EHsc /nologo /Fo%OUT%/ComputeProcessor.obj /c %CL_FLAGS%
 cl.exe %SRC%/TextureTransform.cpp /EHsc /nologo /Fo%OUT%/TextureTransform.obj /c %CL_FLAGS%
 cl.exe %SRC%/PrologueTransform.cpp /EHsc /nologo /Fo%OUT%/PrologueTransform.obj /c %CL_FLAGS%
+cl.exe %SRC%/fcpp.c /EHsc /nologo /Fo%OUT%/fcpp.obj /c %CL_FLAGS%
 cl.exe %DEP%/ComputeParser.c /EHsc /nologo /Fo%OUT%/ComputeParser.obj /c %CL_FLAGS%
-link.exe %LINK_FLAGS% /LIBPATH:"%WINDOWS_SDK_DIR%lib" /OUT:%OUT%/cbpp.exe %OUT%/Base %OUT%/cbpp %OUT%/ComputeProcessor %OUT%/TextureTransform %OUT%/PrologueTransform %OUT%/ComputeParser
+link.exe %LINK_FLAGS% /LIBPATH:"%WINDOWS_SDK_DIR%lib" /OUT:%OUT%/cbpp.exe %OUT%/Base %OUT%/cbpp %OUT%/ComputeProcessor %OUT%/TextureTransform %OUT%/PrologueTransform %OUT%/fcpp %OUT%/ComputeParser
