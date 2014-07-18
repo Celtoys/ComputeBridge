@@ -50,6 +50,8 @@ void PrintHelp()
 	printf("\nOptions are:\n\n");
 	printf("   -noheader          Supress header\n");
 	printf("   -verbose           Print logs detailing what cbpp is doing behind the scenes\n");
+	printf("   -output <path>     Generated file output path\n");
+	printf("   -i <path>          Specify additional include search path\n");
 }
 
 
@@ -140,7 +142,7 @@ void PPError(void* user_data, char* format, va_list args)
 }
 
 
-std::vector<char> PreProcessFile(const std::string& filename, const std::vector<char>& in_data)
+std::vector<char> PreProcessFile(const Arguments& args, const std::string& filename, const std::vector<char>& in_data)
 {
 	fppTag tags[20];
 	fppTag* tagptr = tags;
@@ -204,6 +206,21 @@ std::vector<char> PreProcessFile(const std::string& filename, const std::vector<
 		tagptr++;
 	}
 
+	// Loop reading all include directories
+	int nb_include_dirs = 0;
+	while (true)
+	{
+		int index = args.GetIndexOf("-i", nb_include_dirs++);
+		if (index == -1)
+			break;
+
+		// Add a tag for the include directory
+		const std::string& include_dir = args[index];
+		tagptr->tag = FPPTAG_INCLUDE_DIR;
+		tagptr->data = (void*)include_dir.data();
+		tagptr++;
+	}
+
 	// End the tag list
 	tagptr->tag = FPPTAG_END;
 	tagptr->data = 0;
@@ -258,7 +275,7 @@ int main(int argc, const char* argv[])
 		return 1;
 	}
 
-	input_file = PreProcessFile(input_filename, input_file);
+	input_file = PreProcessFile(args, input_filename, input_file);
 
 	ComputeProcessor processor(args, input_filename, input_file);
 	if (!processor.ParseFile())
