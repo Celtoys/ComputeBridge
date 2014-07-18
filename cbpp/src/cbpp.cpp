@@ -19,6 +19,7 @@
 #include "fcpp.h"
 
 #include <string>
+#include <algorithm>
 
 #include "../../lib/ComputeParser.h"
 
@@ -142,7 +143,7 @@ void PPError(void* user_data, char* format, va_list args)
 }
 
 
-std::vector<char> PreProcessFile(const Arguments& args, const std::string& filename, const std::vector<char>& in_data)
+std::vector<char> PreProcessFile(const Arguments& args, const std::string& filename, const std::vector<char>& in_data, ComputeTarget target)
 {
 	fppTag tags[20];
 	fppTag* tagptr = tags;
@@ -221,6 +222,14 @@ std::vector<char> PreProcessFile(const Arguments& args, const std::string& filen
 		tagptr++;
 	}
 
+	// Add the target platform define
+	// NOTE: The Prologue header gets added AFTER pre-processing so this define is
+	//       not used to control that. At least allows the source to know who they're
+	//       compiling for.
+	tagptr->tag = FPPTAG_DEFINE;
+	tagptr->data = (void*)((target == ComputeTarget_OpenCL) ? "CMP_OPENCL" : "CMP_CUDA");
+	tagptr++;
+
 	// End the tag list
 	tagptr->tag = FPPTAG_END;
 	tagptr->data = 0;
@@ -266,6 +275,20 @@ int main(int argc, const char* argv[])
 	if (!args.Have("-noheader"))
 		PrintHeader();
 
+	// Decide for which target to emit
+	std::string target_name = args.GetProperty("-target");
+	std::transform(target_name.begin(), target_name.end(), target_name.begin(), tolower);
+	ComputeTarget target = ComputeTarget_None;
+	if (target_name == "cuda")
+		target = ComputeTarget_CUDA;
+	else if (target_name == "opencl")
+		target = ComputeTarget_OpenCL;
+	else
+	{
+		printf("ERROR: Valid compute target not specified\n\n");
+		return 1;
+	}
+
 	// Load the input file
 	std::string input_filename = args[1];
 	std::vector<char> input_file;
@@ -275,9 +298,9 @@ int main(int argc, const char* argv[])
 		return 1;
 	}
 
-	input_file = PreProcessFile(args, input_filename, input_file);
+	input_file = PreProcessFile(args, input_filename, input_file, target);
 
-	ComputeProcessor processor(args, input_filename, input_file);
+	ComputeProcessor processor(args, input_filename, input_file, target);
 	if (!processor.ParseFile())
 		return 1;
 

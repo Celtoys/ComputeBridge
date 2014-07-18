@@ -58,7 +58,7 @@ enum ComputeTarget
 class ComputeProcessor
 {
 public:
-	ComputeProcessor(const Arguments& arguments, const std::string& input_filename, const std::vector<char>& file_data);
+	ComputeProcessor(const Arguments& arguments, const std::string& input_filename, const std::vector<char>& file_data, ComputeTarget target);
 	~ComputeProcessor();
 
 	bool ParseFile();

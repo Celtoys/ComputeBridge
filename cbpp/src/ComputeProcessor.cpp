@@ -3,7 +3,6 @@
 
 #include <cassert>
 #include <string>
-#include <algorithm>
 
 
 // List of all registered transform descriptions
@@ -126,11 +125,11 @@ void TokenList::DeleteAll()
 }
 
 
-ComputeProcessor::ComputeProcessor(const ::Arguments& arguments, const std::string& input_filename, const std::vector<char>& file_data)
+ComputeProcessor::ComputeProcessor(const ::Arguments& arguments, const std::string& input_filename, const std::vector<char>& file_data, ComputeTarget target)
 	: m_Arguments(arguments)
 	, m_InputFilename(input_filename)
 	, m_FileData(file_data)
-	, m_Target(ComputeTarget_None)
+	, m_Target(target)
 	, m_LexerCursor(0)
 	, m_ParserCursor(0)
 	, m_RootNode(0)
@@ -175,19 +174,6 @@ bool ComputeProcessor::ParseFile()
 {
 	const char* filename = m_InputFilename.c_str();
 	bool verbose = m_Arguments.Have("-verbose");
-
-	// Decide which for which target to emit
-	std::string target = m_Arguments.GetProperty("-target");
-	std::transform(target.begin(), target.end(), target.begin(), tolower);
-	if (target == "cuda")
-		m_Target = ComputeTarget_CUDA;
-	else if (target == "opencl")
-		m_Target = ComputeTarget_OpenCL;
-	else
-	{
-		printf("Valid compute target not specified\n\n");
-		return false;
-	}
 
 	// Build a list of tokens
 	if (cmpError error = cmpLexerCursor_Create(&m_LexerCursor, m_FileData.data(), m_FileData.size(), verbose))
