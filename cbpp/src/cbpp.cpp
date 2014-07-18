@@ -53,6 +53,7 @@ void PrintHelp()
 	printf("   -verbose           Print logs detailing what cbpp is doing behind the scenes\n");
 	printf("   -output <path>     Generated file output path\n");
 	printf("   -i <path>          Specify additional include search path\n");
+	printf("   -d <sym|sym=val>   Define macro symbols\n");
 }
 
 
@@ -229,6 +230,21 @@ std::vector<char> PreProcessFile(const Arguments& args, const std::string& filen
 	tagptr->tag = FPPTAG_DEFINE;
 	tagptr->data = (void*)((target == ComputeTarget_OpenCL) ? "CMP_OPENCL" : "CMP_CUDA");
 	tagptr++;
+
+	// Loop reading all defines
+	int nb_defines = 0;
+	while (true)
+	{
+		int index = args.GetIndexOf("-d", nb_defines++);
+		if (index == -1)
+			break;
+
+		// Add a tag for the define
+		const std::string& define = args[index];
+		tagptr->tag = FPPTAG_DEFINE;
+		tagptr->data = (void*)define.data();
+		tagptr++;
+	}
 
 	// End the tag list
 	tagptr->tag = FPPTAG_END;
