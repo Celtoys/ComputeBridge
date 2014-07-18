@@ -54,6 +54,7 @@ void PrintHelp()
 	printf("   -output <path>     Generated file output path\n");
 	printf("   -i <path>          Specify additional include search path\n");
 	printf("   -d <sym|sym=val>   Define macro symbols\n");
+	printf("   -show_includes     Print the included files to stdout\n");
 }
 
 
@@ -243,6 +244,14 @@ std::vector<char> PreProcessFile(const Arguments& args, const std::string& filen
 		const std::string& define = args[index];
 		tagptr->tag = FPPTAG_DEFINE;
 		tagptr->data = (void*)define.data();
+		tagptr++;
+	}
+
+	// Optionally show include dependencies
+	if (args.Have("-show_includes"))
+	{
+		tagptr->tag = FPPTAG_OUTPUTINCLUDES;
+		tagptr->data = (void*)TRUE;
 		tagptr++;
 	}
 
