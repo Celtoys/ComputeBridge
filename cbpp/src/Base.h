@@ -7,6 +7,17 @@
 
 
 //
+// Some path utils. A path is a directory plus filename.
+//
+std::string GetCurrentWorkingDirectory();
+std::string GetExecutableFullPath();
+std::string GetPathDrive(const std::string& path);
+std::string GetPathDirectory(const std::string& path);
+std::string JoinPaths(const std::string& p0, const std::string& p1);
+bool IsPathAbsolute(const std::string& path);
+
+
+//
 // RAII file structure with public data members to encourage use of existing cstd functions
 // that haven't been wrapped.
 //

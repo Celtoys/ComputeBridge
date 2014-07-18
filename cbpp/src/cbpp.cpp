@@ -145,11 +145,23 @@ void PPError(void* user_data, char* format, va_list args)
 }
 
 
-std::vector<char> PreProcessFile(const Arguments& args, const std::string& filename, const std::vector<char>& in_data, ComputeTarget target)
+std::string FormatPath(std::string path)
 {
-	fppTag tags[20];
+	// Replace back-slash with forward-slash as fcpp can't handle it
+	std::replace(path.begin(), path.end(), '\\', '/');
+
+	// Requirement for FPPTAG_INCLUDE_DIR
+	if (path.back() != '/')
+		path += '/';
+
+	return path;
+}
+
+
+std::vector<char> PreProcessFile(const Arguments& args, std::string filename, const std::vector<char>& in_data, ComputeTarget target)
+{
+	fppTag tags[200];
 	fppTag* tagptr = tags;
-	std::string include;
 
 	// Create/set the user data
 	PPInfo pp_info(in_data);
@@ -182,43 +194,51 @@ std::vector<char> PreProcessFile(const Arguments& args, const std::string& filen
 	tagptr->data = (void*)FALSE;
 	tagptr++;
 
-	// Point to the end of the filename and scan back, looking for the first path separator
-	const char* fptr = filename.data() + filename.length() - 1;
-	while (fptr != filename && *fptr != '/' && *fptr != '\\')
-		fptr--;
+	// When using the "-show_includes" option I would like cbpp to output the FULL PATH to included files.
+	// When you do a local include "X", fcpp will only print the relative path to the included file.
+	// Rather than refactoring the internals of fcpp I've added this new tag which forces all includes
+	// to go down the non-local search path route. This requires the directory of the input file to be
+	// registered as an include directory manually.
+	tagptr->tag = FPPTAG_ALLOW_INCLUDE_LOCAL;
+	tagptr->data = (void*)FALSE;
+	tagptr++;
 
-	// Was a path specified in the filename?
-	if (fptr != filename)
+	// Promotve the input filename to an absolute path so that relative paths can provide an include directory
+	if (!IsPathAbsolute(filename))
 	{
-		int path_length = fptr - filename.data();
-		include = std::string(filename, 0, path_length);
+		std::string cwd = GetCurrentWorkingDirectory();
+		filename = JoinPaths(cwd, filename);
+	}
 
-		// Replace back-slash with forward-slash as fcpp can't handle it
-		for (size_t i = 0; i < include.length(); i++)
-		{
-			if (include[i] == '\\')
-				include[i] = '/';
-		}
-
-		// Requirement for FPPTAG_INCLUDE_DIR
-		include += '/';
-
+	// Add the directory of the input file to the list of include search directories
+	std::string filename_dir = GetPathDirectory(filename);
+	if (!filename_dir.empty())
+	{		
 		// Add the location of the filename as an include directory
+		filename_dir = FormatPath(filename_dir);
 		tagptr->tag = FPPTAG_INCLUDE_DIR;
-		tagptr->data = (void*)include.data();
+		tagptr->data = (void*)filename_dir.data();
 		tagptr++;
 	}
 
+	// Have to modify include directories specified on the command-line and keep them
+	// around in memory so that the fppTag mechanism can reference them.
+	// Pre-allocate max count of includes using arg count as push_back() can destroy
+	// memory of previously pushed items. Not ideal.
+	std::vector<std::string> include_dirs(args.Count());
+
 	// Loop reading all include directories
-	int nb_include_dirs = 0;
+	int include_dir_idx = 0;
 	while (true)
 	{
-		int index = args.GetIndexOf("-i", nb_include_dirs++);
-		if (index == -1)
+		std::string cmd_include_dir = args.GetProperty("-i", include_dir_idx);
+		if (cmd_include_dir == "")
 			break;
 
+		std::string& include_dir = include_dirs[include_dir_idx++];
+		include_dir = FormatPath(cmd_include_dir);
+
 		// Add a tag for the include directory
-		const std::string& include_dir = args[index];
 		tagptr->tag = FPPTAG_INCLUDE_DIR;
 		tagptr->data = (void*)include_dir.data();
 		tagptr++;
@@ -237,11 +257,11 @@ std::vector<char> PreProcessFile(const Arguments& args, const std::string& filen
 	while (true)
 	{
 		int index = args.GetIndexOf("-d", nb_defines++);
-		if (index == -1)
+		if (index == -1 || index > args.Count() - 1)
 			break;
 
 		// Add a tag for the define
-		const std::string& define = args[index];
+		const std::string& define = args[index + 1];
 		tagptr->tag = FPPTAG_DEFINE;
 		tagptr->data = (void*)define.data();
 		tagptr++;

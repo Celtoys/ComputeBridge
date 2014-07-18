@@ -4,6 +4,83 @@
 #include <string>
 
 
+#ifdef _WIN32
+#define WIN_32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
+
+#ifdef _WIN32
+
+std::string GetCurrentWorkingDirectory()
+{
+	char buffer[512];
+	GetCurrentDirectory(sizeof(buffer) - 1, buffer);
+	return buffer;
+}
+
+std::string GetExecutableFullPath()
+{
+	char buffer[512];
+	GetModuleFileName(NULL, buffer, sizeof(buffer) - 1);
+	return buffer;
+}
+
+#endif
+
+
+std::string GetPathDrive(const std::string& path)
+{
+	if (path.length() > 1 && path[1] == ':')
+		return path.substr(0, 2);
+	return "";
+}
+
+
+std::string GetPathDirectory(const std::string& path)
+{
+	// Parse the executable path looking for its directory
+	std::string directory = "";
+	size_t sep = path.rfind('\\');
+	if (sep == -1)
+		sep = path.rfind('/');
+	if (sep != -1)
+		directory = path.substr(0, sep);
+	return directory;
+}
+
+
+std::string JoinPaths(const std::string& p0, const std::string& p1)
+{
+	// Need to take into account "A"+"B", "A/"+"B", "A"+"/B", "A/"+"/B"
+	std::string path = p0;
+	if (p0.back() == '\\' || p0.back() == '/')
+		path = path.substr(0, path.length() - 1);
+	if (p1.front() != '\\' && p1.back() != '/')
+		path += '/';
+	path += p1;
+	return path;
+}
+
+
+bool IsPathAbsolute(const std::string& path)
+{
+	size_t len = path.length();
+	if (len == 0)
+		return false;
+
+	// Start with a single backslash is absolute for current drive
+	if (path[0] == '\\')
+		return true;
+
+	// Drive specified
+	if (len > 1 && path[1] == ':')
+		return true;
+
+	return false;
+}
+
+
 File::File()
 	: fp(0)
 {
@@ -59,22 +136,6 @@ bool LoadFileData(const char* filename, std::vector<char>& file_data)
 
 	file_data.resize(Size(file));
 	return Read(file, file_data.data(), file_data.size());
-}
-
-
-
-namespace
-{
-	#ifdef _WIN32
-	#define WIN32_LEAN_AND_MEAN
-	#include <windows.h>
-	std::string GetExecutableFullPath()
-	{
-		char buffer[512];
-		GetModuleFileName(NULL, buffer, sizeof(buffer) - 1);
-		return buffer;
-	}
-	#endif
 }
 
 

@@ -135,12 +135,7 @@ ComputeProcessor::ComputeProcessor(const ::Arguments& arguments, const std::stri
 	, m_RootNode(0)
 {
 	// Parse the executable path looking for its directory
-	m_ExecutableDirectory = m_Arguments[0];
-	size_t sep = m_ExecutableDirectory.rfind('\\');
-	if (sep == -1)
-		sep = m_ExecutableDirectory.rfind('/');
-	if (sep != -1)
-		m_ExecutableDirectory = m_ExecutableDirectory.substr(0, sep);
+	m_ExecutableDirectory = GetPathDirectory(m_Arguments[0]);
 }
 
 
