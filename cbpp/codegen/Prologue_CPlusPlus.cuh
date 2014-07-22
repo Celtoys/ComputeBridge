@@ -127,6 +127,18 @@ tuple4(ulong, ulong4);
 
 
 //
+// Templated types to allow functions with texture parameters to compile.
+// This types are empty, meaning the functions can't be called from the host.
+//
+template <typename> struct Texture3Du { };
+template <typename> struct Texture3Dn { };
+template <typename> struct Texture2Du { };
+template <typename> struct Texture2Dn { };
+template <typename> struct Texture1Du { };
+template <typename> struct Texture1Dn { };
+
+
+//
 // Vector construction abstractions
 //
 cmp_device_fn float2 cmp_make_float2(float x, float y)
