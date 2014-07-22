@@ -184,11 +184,6 @@ std::vector<char> PreProcessFile(const Arguments& args, std::string filename, co
 	tagptr->data = PPError;
 	tagptr++;
 
-	// Set the input filename
-	tagptr->tag = FPPTAG_INPUT_NAME;
-	tagptr->data = (void*)filename.data();
-	tagptr++;
-
 	// Don't display version information
 	tagptr->tag = FPPTAG_SHOWVERSION;
 	tagptr->data = (void*)FALSE;
@@ -203,12 +198,18 @@ std::vector<char> PreProcessFile(const Arguments& args, std::string filename, co
 	tagptr->data = (void*)FALSE;
 	tagptr++;
 
-	// Promotve the input filename to an absolute path so that relative paths can provide an include directory
+	// Promote the input filename to an absolute path so that relative paths can provide an include directory
 	if (!IsPathAbsolute(filename))
 	{
 		std::string cwd = GetCurrentWorkingDirectory();
 		filename = JoinPaths(cwd, filename);
+		std::replace(filename.begin(), filename.end(), '\\', '/');
 	}
+
+	// Set the input filename
+	tagptr->tag = FPPTAG_INPUT_NAME;
+	tagptr->data = (void*)filename.data();
+	tagptr++;
 
 	// Add the directory of the input file to the list of include search directories
 	std::string filename_dir = GetPathDirectory(filename);
