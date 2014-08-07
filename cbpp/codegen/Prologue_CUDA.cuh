@@ -62,13 +62,25 @@
 //
 // Vector construction abstractions
 //
+cmp_device_fn uint2 cmp_make_uint2(uint x, uint y)
+{
+	return make_uint2(x, y);
+}
+cmp_device_fn uint3 cmp_make_uint3(uint x, uint y, uint z)
+{
+	return make_uint3(x, y, z);
+}
+cmp_device_fn uint4 cmp_make_uint4(uint x, uint y, uint z, uint w)
+{
+	return make_uint4(x, y, z, w);
+}
 cmp_device_fn float2 cmp_make_float2(float x, float y)
 {
 	return make_float2(x, y);
 }
 cmp_device_fn float3 cmp_make_float3(float x, float y, float z)
 {
-		return make_float3(x, y, z);
+	return make_float3(x, y, z);
 }
 cmp_device_fn float4 cmp_make_float4(float x, float y, float z, float w)
 {
@@ -134,6 +146,14 @@ cmp_device_fn double3 cmp_int3_to_double3(int3 i)
 cmp_device_fn uint cmp_atomic_or(uint* p, uint val)
 {
 	return atomicOr(p, val);
+}
+cmp_device_fn uint cmp_atomic_min(uint* p, uint val)
+{
+	return atomicMin(p, val);
+}
+cmp_device_fn uint cmp_atomic_max(uint* p, uint val)
+{
+	return atomicMax(p, val);
 }
 
 
