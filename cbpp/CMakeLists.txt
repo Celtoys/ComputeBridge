@@ -16,8 +16,11 @@ set(CMAKE_LDFLAGS "${CMAKE_LDFLAGS} -L\".\" ")
 
 set(SRCS
     ../lib/ComputeParser.c
+    src/fcpp.c
+    src/Base.cpp
     src/cbpp.cpp
     src/ComputeProcessor.cpp
+    src/PrologueTransform.cpp
     src/TextureTransform.cpp
 )
 
