@@ -47,9 +47,6 @@
 #define cmp_surf_write_3d(d, s, x, y, z)
 
 
-namespace cmp {
-
-
 //
 // Basic type aliases
 //
@@ -247,9 +244,6 @@ cmp_device_fn float3 cmp_floor(float3 v)
 {
 	return float3(floorf(v.x), floorf(v.y), floorf(v.z));
 }
-
-
-} // End namespace cmp
 
 
 #endif
