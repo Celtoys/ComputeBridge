@@ -4,18 +4,6 @@
 
 
 //
-// CUDA doesn't have built-in vector types, meaning that there are no operators built in as a result.
-// While this mimics modern-day GPU scalar hardware, it requires that the vector types and their
-// operators be defined in code.
-//
-// This header file is located in the CUDA v6 samples common include directory
-#include <helper_math.h>
-
-// The helper libraries don't have double versions of vector math functions or operator overloads
-#include "CUDADoubleMath.cuh"
-
-
-//
 // Specify device functions local to the kernel
 //
 #define cmp_device_fn __device__
@@ -57,6 +45,9 @@
 #define cmp_surf_write_1d(d, s, x) surf1Dwrite(d, s, (x) * sizeof(d))
 #define cmp_surf_write_2d(d, s, x, y) surf2Dwrite(d, s, (x) * sizeof(d), (y))
 #define cmp_surf_write_3d(d, s, x, y, z) surf3Dwrite(d, s, (x) * sizeof(d), (y), (z))
+
+
+#include "cbpp/Math.h"
 
 
 //
