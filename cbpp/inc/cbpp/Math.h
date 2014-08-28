@@ -1,4 +1,19 @@
 
+//
+// Packing Rules for Constant Variables (HLSL)
+//    http://msdn.microsoft.com/en-us/library/windows/desktop/bb509632(v=vs.85).aspx
+//
+// Device Memory Accesses
+//    http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#device-memory-accesses
+//
+// Alignment Requirements in Device Code
+//    http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#vector-types__alignment-requirements-in-device-code
+//
+// There are only alignment/packing requirements on each platform. The size of the individual vector types
+// does not differ. This alignment/packing is only relevant when sending data from the host to the device,
+// or back.
+//
+
 #ifndef INCLUDED_CBPP_MATH_H
 #define INCLUDED_CBPP_MATH_H
 
@@ -15,7 +30,7 @@
 
 // Allow math types to be reflected by clReflect
 // https://bitbucket.org/dwilliamson/clreflect
-#if defined(__cplusplus) && defined(CBPP_USE_CLREFLECT)
+#if defined(CMP_CPP) && defined(CBPP_USE_CLREFLECT)
 	#include <clcpp/clcpp.h>
 #else
 	#define clcpp_attr(x)
@@ -23,7 +38,7 @@
 
 
 // CRT math header
-#if defined(__cplusplus) && !defined(__CUDACC__)
+#if defined(CMP_CPP)
 
 	#if defined(CBPP_USE_TINYCRT)
 		#include <tinycrt/tinycrt.h>
@@ -35,9 +50,9 @@
 
 
 // Treat all CUDA functions as device functions
-#if defined(__CUDACC__)
+#if defined(CMP_CUDA)
 	#define cmp_math_fn __device__
-#elif defined(__cplusplus)
+#else
 	#define cmp_math_fn
 #endif
 
@@ -53,8 +68,7 @@
 #endif
 
 
-// CUDA compiler defines __cplusplus
-#if defined(__cplusplus) && !defined(__CUDACC__)
+#if defined(CMP_CPP)
 
 
 	// Vector Types ------------------------------------------------------------------------------------
@@ -288,7 +302,28 @@
 #endif
 
 
-#if defined(__cplusplus)
+#if defined(CMP_HLSL)
+
+
+	// Transcendentals --------------------------------------------------------------------------------
+	inline cmp_math_fn float sinf(float v)
+	{
+		return (float)sin(v);
+	}
+	inline cmp_math_fn float cosf(float v)
+	{
+		return (float)cos(v);
+	}
+	inline cmp_math_fn float tanf(float v)
+	{
+		return (float)tan(v);
+	}
+
+
+#endif
+
+
+#if defined(CMP_CPP) || defined(CMP_CUDA)
 
 
 	// Cross-language vector construction (until ComputeBridge gets constructors) ----------------------
