@@ -3,6 +3,9 @@
 #define INCLUDED_CBPP_MATH_H
 
 
+#include "Platform.h"
+
+
 // This header file uses pycgen to generate functions and types that can be forward-declared
 // and stepped-through in the debugger.
 /*$pycgen
