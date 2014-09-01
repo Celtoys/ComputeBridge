@@ -21,10 +21,19 @@
 #include "Platform.h"
 
 
+// Prologue check
+#if defined(CMP_CPP) || defined(CMP_HLSL) || defined(CMP_WITHIN_PROLOGUE)
+
+
 // This header file uses pycgen to generate functions and types that can be forward-declared
 // and stepped-through in the debugger.
 /*$pycgen
-	all_types = "float,double,char,uchar,short,ushort,int,uint,long,ulong"
+	basic_types = "float,double,int,uint"
+
+	# These types are not supported by HLSL. For now, HLSL can't use them.
+	extended_types = "char,uchar,short,ushort,long,ulong"
+
+	all_types = basic_types + "," + extended_types
 */
 
 
@@ -117,6 +126,18 @@
 			double2(double x, double y) : x(x), y(y) { }
 			double x, y;
 		};
+		struct clcpp_attr(reflect_part) int2
+		{
+			int2() : x(0), y(0) { }
+			int2(int x, int y) : x(x), y(y) { }
+			int x, y;
+		};
+		struct clcpp_attr(reflect_part) uint2
+		{
+			uint2() : x(0), y(0) { }
+			uint2(uint x, uint y) : x(x), y(y) { }
+			uint x, y;
+		};
 		struct clcpp_attr(reflect_part) char2
 		{
 			char2() : x(0), y(0) { }
@@ -140,18 +161,6 @@
 			ushort2() : x(0), y(0) { }
 			ushort2(ushort x, ushort y) : x(x), y(y) { }
 			ushort x, y;
-		};
-		struct clcpp_attr(reflect_part) int2
-		{
-			int2() : x(0), y(0) { }
-			int2(int x, int y) : x(x), y(y) { }
-			int x, y;
-		};
-		struct clcpp_attr(reflect_part) uint2
-		{
-			uint2() : x(0), y(0) { }
-			uint2(uint x, uint y) : x(x), y(y) { }
-			uint x, y;
 		};
 		struct clcpp_attr(reflect_part) long2
 		{
@@ -177,6 +186,18 @@
 			double3(double x, double y, double z) : x(x), y(y), z(z) { }
 			double x, y, z;
 		};
+		struct clcpp_attr(reflect_part) int3
+		{
+			int3() : x(0), y(0), z(0) { }
+			int3(int x, int y, int z) : x(x), y(y), z(z) { }
+			int x, y, z;
+		};
+		struct clcpp_attr(reflect_part) uint3
+		{
+			uint3() : x(0), y(0), z(0) { }
+			uint3(uint x, uint y, uint z) : x(x), y(y), z(z) { }
+			uint x, y, z;
+		};
 		struct clcpp_attr(reflect_part) char3
 		{
 			char3() : x(0), y(0), z(0) { }
@@ -200,18 +221,6 @@
 			ushort3() : x(0), y(0), z(0) { }
 			ushort3(ushort x, ushort y, ushort z) : x(x), y(y), z(z) { }
 			ushort x, y, z;
-		};
-		struct clcpp_attr(reflect_part) int3
-		{
-			int3() : x(0), y(0), z(0) { }
-			int3(int x, int y, int z) : x(x), y(y), z(z) { }
-			int x, y, z;
-		};
-		struct clcpp_attr(reflect_part) uint3
-		{
-			uint3() : x(0), y(0), z(0) { }
-			uint3(uint x, uint y, uint z) : x(x), y(y), z(z) { }
-			uint x, y, z;
 		};
 		struct clcpp_attr(reflect_part) long3
 		{
@@ -237,6 +246,18 @@
 			double4(double x, double y, double z, double w) : x(x), y(y), z(z), w(w) { }
 			double x, y, z, w;
 		};
+		struct clcpp_attr(reflect_part) int4
+		{
+			int4() : x(0), y(0), z(0), w(0) { }
+			int4(int x, int y, int z, int w) : x(x), y(y), z(z), w(w) { }
+			int x, y, z, w;
+		};
+		struct clcpp_attr(reflect_part) uint4
+		{
+			uint4() : x(0), y(0), z(0), w(0) { }
+			uint4(uint x, uint y, uint z, uint w) : x(x), y(y), z(z), w(w) { }
+			uint x, y, z, w;
+		};
 		struct clcpp_attr(reflect_part) char4
 		{
 			char4() : x(0), y(0), z(0), w(0) { }
@@ -260,18 +281,6 @@
 			ushort4() : x(0), y(0), z(0), w(0) { }
 			ushort4(ushort x, ushort y, ushort z, ushort w) : x(x), y(y), z(z), w(w) { }
 			ushort x, y, z, w;
-		};
-		struct clcpp_attr(reflect_part) int4
-		{
-			int4() : x(0), y(0), z(0), w(0) { }
-			int4(int x, int y, int z, int w) : x(x), y(y), z(z), w(w) { }
-			int x, y, z, w;
-		};
-		struct clcpp_attr(reflect_part) uint4
-		{
-			uint4() : x(0), y(0), z(0), w(0) { }
-			uint4(uint x, uint y, uint z, uint w) : x(x), y(y), z(z), w(w) { }
-			uint x, y, z, w;
 		};
 		struct clcpp_attr(reflect_part) long4
 		{
@@ -318,295 +327,320 @@
 	{
 		return (float)tan(v);
 	}
+	inline cmp_math_fn float sqrtf(float v)
+	{
+		return (float)sqrt(v);
+	}
 
 
 #endif
 
 
+// Cross-language vector construction (until ComputeBridge gets constructors) ----------------------
+/*$pycgen
+	make2 = """
+	inline cmp_math_fn T2 T3_to_T2(T3 v)
+	{
+		T2 r; r.x = v.x; r.y = v.y;
+		return r;
+	}
+	inline cmp_math_fn T2 T2_make(T x, T y)
+	{
+		T2 r; r.x = x; r.y = y;
+		return r;
+	}
+	"""
+
+	make3 = """
+	inline cmp_math_fn T3 T4_to_T3(T4 v)
+	{
+		T3 r; r.x = v.x; r.y = v.y; r.z = v.z;
+		return r;
+	}
+	inline cmp_math_fn T3 T3_make(T x, T y, T z)
+	{
+		T3 r; r.x = x; r.y = y; r.z = z;
+		return r;
+	}
+	"""
+
+	make4 = """
+	inline cmp_math_fn T4 T4_make(T x, T y, T z, T w)
+	{
+		T4 r; r.x = x; r.y = y; r.z = z; r.w = w;
+		return r;
+	}
+	"""
+
+	# All target languges support the basic types
+	EmitRepl(make2, "T:" + basic_types)
+	EmitRepl(make3, "T:" + basic_types)
+	EmitRepl(make4, "T:" + basic_types)
+
+	# HLSL does not support the extended types
+	EmitLn("#if !defined(CMP_HLSL)")
+	EmitRepl(make2, "T:" + extended_types)
+	EmitRepl(make3, "T:" + extended_types)
+	EmitRepl(make4, "T:" + extended_types)
+	EmitLn("#endif")
+*/
+//$pycgen-begin
+	inline cmp_math_fn float2 float3_to_float2(float3 v)
+	{
+		float2 r; r.x = v.x; r.y = v.y;
+		return r;
+	}
+	inline cmp_math_fn float2 float2_make(float x, float y)
+	{
+		float2 r; r.x = x; r.y = y;
+		return r;
+	}
+	inline cmp_math_fn double2 double3_to_double2(double3 v)
+	{
+		double2 r; r.x = v.x; r.y = v.y;
+		return r;
+	}
+	inline cmp_math_fn double2 double2_make(double x, double y)
+	{
+		double2 r; r.x = x; r.y = y;
+		return r;
+	}
+	inline cmp_math_fn int2 int3_to_int2(int3 v)
+	{
+		int2 r; r.x = v.x; r.y = v.y;
+		return r;
+	}
+	inline cmp_math_fn int2 int2_make(int x, int y)
+	{
+		int2 r; r.x = x; r.y = y;
+		return r;
+	}
+	inline cmp_math_fn uint2 uint3_to_uint2(uint3 v)
+	{
+		uint2 r; r.x = v.x; r.y = v.y;
+		return r;
+	}
+	inline cmp_math_fn uint2 uint2_make(uint x, uint y)
+	{
+		uint2 r; r.x = x; r.y = y;
+		return r;
+	}
+	inline cmp_math_fn float3 float4_to_float3(float4 v)
+	{
+		float3 r; r.x = v.x; r.y = v.y; r.z = v.z;
+		return r;
+	}
+	inline cmp_math_fn float3 float3_make(float x, float y, float z)
+	{
+		float3 r; r.x = x; r.y = y; r.z = z;
+		return r;
+	}
+	inline cmp_math_fn double3 double4_to_double3(double4 v)
+	{
+		double3 r; r.x = v.x; r.y = v.y; r.z = v.z;
+		return r;
+	}
+	inline cmp_math_fn double3 double3_make(double x, double y, double z)
+	{
+		double3 r; r.x = x; r.y = y; r.z = z;
+		return r;
+	}
+	inline cmp_math_fn int3 int4_to_int3(int4 v)
+	{
+		int3 r; r.x = v.x; r.y = v.y; r.z = v.z;
+		return r;
+	}
+	inline cmp_math_fn int3 int3_make(int x, int y, int z)
+	{
+		int3 r; r.x = x; r.y = y; r.z = z;
+		return r;
+	}
+	inline cmp_math_fn uint3 uint4_to_uint3(uint4 v)
+	{
+		uint3 r; r.x = v.x; r.y = v.y; r.z = v.z;
+		return r;
+	}
+	inline cmp_math_fn uint3 uint3_make(uint x, uint y, uint z)
+	{
+		uint3 r; r.x = x; r.y = y; r.z = z;
+		return r;
+	}
+	inline cmp_math_fn float4 float4_make(float x, float y, float z, float w)
+	{
+		float4 r; r.x = x; r.y = y; r.z = z; r.w = w;
+		return r;
+	}
+	inline cmp_math_fn double4 double4_make(double x, double y, double z, double w)
+	{
+		double4 r; r.x = x; r.y = y; r.z = z; r.w = w;
+		return r;
+	}
+	inline cmp_math_fn int4 int4_make(int x, int y, int z, int w)
+	{
+		int4 r; r.x = x; r.y = y; r.z = z; r.w = w;
+		return r;
+	}
+	inline cmp_math_fn uint4 uint4_make(uint x, uint y, uint z, uint w)
+	{
+		uint4 r; r.x = x; r.y = y; r.z = z; r.w = w;
+		return r;
+	}
+	#if !defined(CMP_HLSL)
+	inline cmp_math_fn char2 char3_to_char2(char3 v)
+	{
+		char2 r; r.x = v.x; r.y = v.y;
+		return r;
+	}
+	inline cmp_math_fn char2 char2_make(char x, char y)
+	{
+		char2 r; r.x = x; r.y = y;
+		return r;
+	}
+	inline cmp_math_fn uchar2 uchar3_to_uchar2(uchar3 v)
+	{
+		uchar2 r; r.x = v.x; r.y = v.y;
+		return r;
+	}
+	inline cmp_math_fn uchar2 uchar2_make(uchar x, uchar y)
+	{
+		uchar2 r; r.x = x; r.y = y;
+		return r;
+	}
+	inline cmp_math_fn short2 short3_to_short2(short3 v)
+	{
+		short2 r; r.x = v.x; r.y = v.y;
+		return r;
+	}
+	inline cmp_math_fn short2 short2_make(short x, short y)
+	{
+		short2 r; r.x = x; r.y = y;
+		return r;
+	}
+	inline cmp_math_fn ushort2 ushort3_to_ushort2(ushort3 v)
+	{
+		ushort2 r; r.x = v.x; r.y = v.y;
+		return r;
+	}
+	inline cmp_math_fn ushort2 ushort2_make(ushort x, ushort y)
+	{
+		ushort2 r; r.x = x; r.y = y;
+		return r;
+	}
+	inline cmp_math_fn long2 long3_to_long2(long3 v)
+	{
+		long2 r; r.x = v.x; r.y = v.y;
+		return r;
+	}
+	inline cmp_math_fn long2 long2_make(long x, long y)
+	{
+		long2 r; r.x = x; r.y = y;
+		return r;
+	}
+	inline cmp_math_fn ulong2 ulong3_to_ulong2(ulong3 v)
+	{
+		ulong2 r; r.x = v.x; r.y = v.y;
+		return r;
+	}
+	inline cmp_math_fn ulong2 ulong2_make(ulong x, ulong y)
+	{
+		ulong2 r; r.x = x; r.y = y;
+		return r;
+	}
+	inline cmp_math_fn char3 char4_to_char3(char4 v)
+	{
+		char3 r; r.x = v.x; r.y = v.y; r.z = v.z;
+		return r;
+	}
+	inline cmp_math_fn char3 char3_make(char x, char y, char z)
+	{
+		char3 r; r.x = x; r.y = y; r.z = z;
+		return r;
+	}
+	inline cmp_math_fn uchar3 uchar4_to_uchar3(uchar4 v)
+	{
+		uchar3 r; r.x = v.x; r.y = v.y; r.z = v.z;
+		return r;
+	}
+	inline cmp_math_fn uchar3 uchar3_make(uchar x, uchar y, uchar z)
+	{
+		uchar3 r; r.x = x; r.y = y; r.z = z;
+		return r;
+	}
+	inline cmp_math_fn short3 short4_to_short3(short4 v)
+	{
+		short3 r; r.x = v.x; r.y = v.y; r.z = v.z;
+		return r;
+	}
+	inline cmp_math_fn short3 short3_make(short x, short y, short z)
+	{
+		short3 r; r.x = x; r.y = y; r.z = z;
+		return r;
+	}
+	inline cmp_math_fn ushort3 ushort4_to_ushort3(ushort4 v)
+	{
+		ushort3 r; r.x = v.x; r.y = v.y; r.z = v.z;
+		return r;
+	}
+	inline cmp_math_fn ushort3 ushort3_make(ushort x, ushort y, ushort z)
+	{
+		ushort3 r; r.x = x; r.y = y; r.z = z;
+		return r;
+	}
+	inline cmp_math_fn long3 long4_to_long3(long4 v)
+	{
+		long3 r; r.x = v.x; r.y = v.y; r.z = v.z;
+		return r;
+	}
+	inline cmp_math_fn long3 long3_make(long x, long y, long z)
+	{
+		long3 r; r.x = x; r.y = y; r.z = z;
+		return r;
+	}
+	inline cmp_math_fn ulong3 ulong4_to_ulong3(ulong4 v)
+	{
+		ulong3 r; r.x = v.x; r.y = v.y; r.z = v.z;
+		return r;
+	}
+	inline cmp_math_fn ulong3 ulong3_make(ulong x, ulong y, ulong z)
+	{
+		ulong3 r; r.x = x; r.y = y; r.z = z;
+		return r;
+	}
+	inline cmp_math_fn char4 char4_make(char x, char y, char z, char w)
+	{
+		char4 r; r.x = x; r.y = y; r.z = z; r.w = w;
+		return r;
+	}
+	inline cmp_math_fn uchar4 uchar4_make(uchar x, uchar y, uchar z, uchar w)
+	{
+		uchar4 r; r.x = x; r.y = y; r.z = z; r.w = w;
+		return r;
+	}
+	inline cmp_math_fn short4 short4_make(short x, short y, short z, short w)
+	{
+		short4 r; r.x = x; r.y = y; r.z = z; r.w = w;
+		return r;
+	}
+	inline cmp_math_fn ushort4 ushort4_make(ushort x, ushort y, ushort z, ushort w)
+	{
+		ushort4 r; r.x = x; r.y = y; r.z = z; r.w = w;
+		return r;
+	}
+	inline cmp_math_fn long4 long4_make(long x, long y, long z, long w)
+	{
+		long4 r; r.x = x; r.y = y; r.z = z; r.w = w;
+		return r;
+	}
+	inline cmp_math_fn ulong4 ulong4_make(ulong x, ulong y, ulong z, ulong w)
+	{
+		ulong4 r; r.x = x; r.y = y; r.z = z; r.w = w;
+		return r;
+	}
+	#endif
+//$pycgen-end
+
+
 #if defined(CMP_CPP) || defined(CMP_CUDA)
-
-
-	// Cross-language vector construction (until ComputeBridge gets constructors) ----------------------
-	/*$pycgen
-		make2 = """
-		inline cmp_math_fn T2 T2_make(T x, T y)
-		{
-			T2 r;
-			r.x = x;
-			r.y = y;
-			return r;
-		}
-		"""
-
-		make3 = """
-		inline cmp_math_fn T3 T3_make(T x, T y, T z)
-		{
-			T3 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			return r;
-		}
-		"""
-
-		make4 = """
-		inline cmp_math_fn T4 T4_make(T x, T y, T z, T w)
-		{
-			T4 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			r.w = w;
-			return r;
-		}
-		"""
-
-		EmitRepl(make2, "T:" + all_types)
-		EmitRepl(make3, "T:" + all_types)
-		EmitRepl(make4, "T:" + all_types)
-	*/
-	//$pycgen-begin
-		inline cmp_math_fn float2 float2_make(float x, float y)
-		{
-			float2 r;
-			r.x = x;
-			r.y = y;
-			return r;
-		}
-		inline cmp_math_fn double2 double2_make(double x, double y)
-		{
-			double2 r;
-			r.x = x;
-			r.y = y;
-			return r;
-		}
-		inline cmp_math_fn char2 char2_make(char x, char y)
-		{
-			char2 r;
-			r.x = x;
-			r.y = y;
-			return r;
-		}
-		inline cmp_math_fn uchar2 uchar2_make(uchar x, uchar y)
-		{
-			uchar2 r;
-			r.x = x;
-			r.y = y;
-			return r;
-		}
-		inline cmp_math_fn short2 short2_make(short x, short y)
-		{
-			short2 r;
-			r.x = x;
-			r.y = y;
-			return r;
-		}
-		inline cmp_math_fn ushort2 ushort2_make(ushort x, ushort y)
-		{
-			ushort2 r;
-			r.x = x;
-			r.y = y;
-			return r;
-		}
-		inline cmp_math_fn int2 int2_make(int x, int y)
-		{
-			int2 r;
-			r.x = x;
-			r.y = y;
-			return r;
-		}
-		inline cmp_math_fn uint2 uint2_make(uint x, uint y)
-		{
-			uint2 r;
-			r.x = x;
-			r.y = y;
-			return r;
-		}
-		inline cmp_math_fn long2 long2_make(long x, long y)
-		{
-			long2 r;
-			r.x = x;
-			r.y = y;
-			return r;
-		}
-		inline cmp_math_fn ulong2 ulong2_make(ulong x, ulong y)
-		{
-			ulong2 r;
-			r.x = x;
-			r.y = y;
-			return r;
-		}
-		inline cmp_math_fn float3 float3_make(float x, float y, float z)
-		{
-			float3 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			return r;
-		}
-		inline cmp_math_fn double3 double3_make(double x, double y, double z)
-		{
-			double3 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			return r;
-		}
-		inline cmp_math_fn char3 char3_make(char x, char y, char z)
-		{
-			char3 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			return r;
-		}
-		inline cmp_math_fn uchar3 uchar3_make(uchar x, uchar y, uchar z)
-		{
-			uchar3 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			return r;
-		}
-		inline cmp_math_fn short3 short3_make(short x, short y, short z)
-		{
-			short3 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			return r;
-		}
-		inline cmp_math_fn ushort3 ushort3_make(ushort x, ushort y, ushort z)
-		{
-			ushort3 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			return r;
-		}
-		inline cmp_math_fn int3 int3_make(int x, int y, int z)
-		{
-			int3 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			return r;
-		}
-		inline cmp_math_fn uint3 uint3_make(uint x, uint y, uint z)
-		{
-			uint3 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			return r;
-		}
-		inline cmp_math_fn long3 long3_make(long x, long y, long z)
-		{
-			long3 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			return r;
-		}
-		inline cmp_math_fn ulong3 ulong3_make(ulong x, ulong y, ulong z)
-		{
-			ulong3 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			return r;
-		}
-		inline cmp_math_fn float4 float4_make(float x, float y, float z, float w)
-		{
-			float4 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			r.w = w;
-			return r;
-		}
-		inline cmp_math_fn double4 double4_make(double x, double y, double z, double w)
-		{
-			double4 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			r.w = w;
-			return r;
-		}
-		inline cmp_math_fn char4 char4_make(char x, char y, char z, char w)
-		{
-			char4 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			r.w = w;
-			return r;
-		}
-		inline cmp_math_fn uchar4 uchar4_make(uchar x, uchar y, uchar z, uchar w)
-		{
-			uchar4 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			r.w = w;
-			return r;
-		}
-		inline cmp_math_fn short4 short4_make(short x, short y, short z, short w)
-		{
-			short4 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			r.w = w;
-			return r;
-		}
-		inline cmp_math_fn ushort4 ushort4_make(ushort x, ushort y, ushort z, ushort w)
-		{
-			ushort4 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			r.w = w;
-			return r;
-		}
-		inline cmp_math_fn int4 int4_make(int x, int y, int z, int w)
-		{
-			int4 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			r.w = w;
-			return r;
-		}
-		inline cmp_math_fn uint4 uint4_make(uint x, uint y, uint z, uint w)
-		{
-			uint4 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			r.w = w;
-			return r;
-		}
-		inline cmp_math_fn long4 long4_make(long x, long y, long z, long w)
-		{
-			long4 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			r.w = w;
-			return r;
-		}
-		inline cmp_math_fn ulong4 ulong4_make(ulong x, ulong y, ulong z, ulong w)
-		{
-			ulong4 r;
-			r.x = x;
-			r.y = y;
-			r.z = z;
-			r.w = w;
-			return r;
-		}
-	//$pycgen-end
 
 
 	// Add operator ------------------------------------------------------------------------------------
@@ -725,6 +759,46 @@
 		{
 			a.x += b; a.y += b;
 		}
+		inline cmp_math_fn int2 operator + (int2 a, int2 b)
+		{
+			return int2_make(a.x + b.x, a.y + b.y);
+		}
+		inline cmp_math_fn int2 operator + (int2 a, int b)
+		{
+			return int2_make(a.x + b, a.y + b);
+		}
+		inline cmp_math_fn int2 operator + (int a, int2 b)
+		{
+			return b + a;
+		}
+		inline cmp_math_fn void operator += (int2& a, int2 b)
+		{
+			a.x += b.x; a.y += b.y;
+		}
+		inline cmp_math_fn void operator += (int2& a, int b)
+		{
+			a.x += b; a.y += b;
+		}
+		inline cmp_math_fn uint2 operator + (uint2 a, uint2 b)
+		{
+			return uint2_make(a.x + b.x, a.y + b.y);
+		}
+		inline cmp_math_fn uint2 operator + (uint2 a, uint b)
+		{
+			return uint2_make(a.x + b, a.y + b);
+		}
+		inline cmp_math_fn uint2 operator + (uint a, uint2 b)
+		{
+			return b + a;
+		}
+		inline cmp_math_fn void operator += (uint2& a, uint2 b)
+		{
+			a.x += b.x; a.y += b.y;
+		}
+		inline cmp_math_fn void operator += (uint2& a, uint b)
+		{
+			a.x += b; a.y += b;
+		}
 		inline cmp_math_fn char2 operator + (char2 a, char2 b)
 		{
 			return char2_make(a.x + b.x, a.y + b.y);
@@ -802,46 +876,6 @@
 			a.x += b.x; a.y += b.y;
 		}
 		inline cmp_math_fn void operator += (ushort2& a, ushort b)
-		{
-			a.x += b; a.y += b;
-		}
-		inline cmp_math_fn int2 operator + (int2 a, int2 b)
-		{
-			return int2_make(a.x + b.x, a.y + b.y);
-		}
-		inline cmp_math_fn int2 operator + (int2 a, int b)
-		{
-			return int2_make(a.x + b, a.y + b);
-		}
-		inline cmp_math_fn int2 operator + (int a, int2 b)
-		{
-			return b + a;
-		}
-		inline cmp_math_fn void operator += (int2& a, int2 b)
-		{
-			a.x += b.x; a.y += b.y;
-		}
-		inline cmp_math_fn void operator += (int2& a, int b)
-		{
-			a.x += b; a.y += b;
-		}
-		inline cmp_math_fn uint2 operator + (uint2 a, uint2 b)
-		{
-			return uint2_make(a.x + b.x, a.y + b.y);
-		}
-		inline cmp_math_fn uint2 operator + (uint2 a, uint b)
-		{
-			return uint2_make(a.x + b, a.y + b);
-		}
-		inline cmp_math_fn uint2 operator + (uint a, uint2 b)
-		{
-			return b + a;
-		}
-		inline cmp_math_fn void operator += (uint2& a, uint2 b)
-		{
-			a.x += b.x; a.y += b.y;
-		}
-		inline cmp_math_fn void operator += (uint2& a, uint b)
 		{
 			a.x += b; a.y += b;
 		}
@@ -925,6 +959,46 @@
 		{
 			a.x += b; a.y += b; a.z += b;
 		}
+		inline cmp_math_fn int3 operator + (int3 a, int3 b)
+		{
+			return int3_make(a.x + b.x, a.y + b.y, a.z + b.z);
+		}
+		inline cmp_math_fn int3 operator + (int3 a, int b)
+		{
+			return int3_make(a.x + b, a.y + b, a.z + b);
+		}
+		inline cmp_math_fn int3 operator + (int a, int3 b)
+		{
+			return b + a;
+		}
+		inline cmp_math_fn void operator += (int3& a, int3 b)
+		{
+			a.x += b.x; a.y += b.y; a.z += b.z;
+		}
+		inline cmp_math_fn void operator += (int3& a, int b)
+		{
+			a.x += b; a.y += b; a.z += b;
+		}
+		inline cmp_math_fn uint3 operator + (uint3 a, uint3 b)
+		{
+			return uint3_make(a.x + b.x, a.y + b.y, a.z + b.z);
+		}
+		inline cmp_math_fn uint3 operator + (uint3 a, uint b)
+		{
+			return uint3_make(a.x + b, a.y + b, a.z + b);
+		}
+		inline cmp_math_fn uint3 operator + (uint a, uint3 b)
+		{
+			return b + a;
+		}
+		inline cmp_math_fn void operator += (uint3& a, uint3 b)
+		{
+			a.x += b.x; a.y += b.y; a.z += b.z;
+		}
+		inline cmp_math_fn void operator += (uint3& a, uint b)
+		{
+			a.x += b; a.y += b; a.z += b;
+		}
 		inline cmp_math_fn char3 operator + (char3 a, char3 b)
 		{
 			return char3_make(a.x + b.x, a.y + b.y, a.z + b.z);
@@ -1002,46 +1076,6 @@
 			a.x += b.x; a.y += b.y; a.z += b.z;
 		}
 		inline cmp_math_fn void operator += (ushort3& a, ushort b)
-		{
-			a.x += b; a.y += b; a.z += b;
-		}
-		inline cmp_math_fn int3 operator + (int3 a, int3 b)
-		{
-			return int3_make(a.x + b.x, a.y + b.y, a.z + b.z);
-		}
-		inline cmp_math_fn int3 operator + (int3 a, int b)
-		{
-			return int3_make(a.x + b, a.y + b, a.z + b);
-		}
-		inline cmp_math_fn int3 operator + (int a, int3 b)
-		{
-			return b + a;
-		}
-		inline cmp_math_fn void operator += (int3& a, int3 b)
-		{
-			a.x += b.x; a.y += b.y; a.z += b.z;
-		}
-		inline cmp_math_fn void operator += (int3& a, int b)
-		{
-			a.x += b; a.y += b; a.z += b;
-		}
-		inline cmp_math_fn uint3 operator + (uint3 a, uint3 b)
-		{
-			return uint3_make(a.x + b.x, a.y + b.y, a.z + b.z);
-		}
-		inline cmp_math_fn uint3 operator + (uint3 a, uint b)
-		{
-			return uint3_make(a.x + b, a.y + b, a.z + b);
-		}
-		inline cmp_math_fn uint3 operator + (uint a, uint3 b)
-		{
-			return b + a;
-		}
-		inline cmp_math_fn void operator += (uint3& a, uint3 b)
-		{
-			a.x += b.x; a.y += b.y; a.z += b.z;
-		}
-		inline cmp_math_fn void operator += (uint3& a, uint b)
 		{
 			a.x += b; a.y += b; a.z += b;
 		}
@@ -1125,6 +1159,46 @@
 		{
 			a.x += b; a.y += b; a.z += b; a.w += b;
 		}
+		inline cmp_math_fn int4 operator + (int4 a, int4 b)
+		{
+			return int4_make(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
+		}
+		inline cmp_math_fn int4 operator + (int4 a, int b)
+		{
+			return int4_make(a.x + b, a.y + b, a.z + b, a.w + b);
+		}
+		inline cmp_math_fn int4 operator + (int a, int4 b)
+		{
+			return b + a;
+		}
+		inline cmp_math_fn void operator += (int4& a, int4 b)
+		{
+			a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w;
+		}
+		inline cmp_math_fn void operator += (int4& a, int b)
+		{
+			a.x += b; a.y += b; a.z += b; a.w += b;
+		}
+		inline cmp_math_fn uint4 operator + (uint4 a, uint4 b)
+		{
+			return uint4_make(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
+		}
+		inline cmp_math_fn uint4 operator + (uint4 a, uint b)
+		{
+			return uint4_make(a.x + b, a.y + b, a.z + b, a.w + b);
+		}
+		inline cmp_math_fn uint4 operator + (uint a, uint4 b)
+		{
+			return b + a;
+		}
+		inline cmp_math_fn void operator += (uint4& a, uint4 b)
+		{
+			a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w;
+		}
+		inline cmp_math_fn void operator += (uint4& a, uint b)
+		{
+			a.x += b; a.y += b; a.z += b; a.w += b;
+		}
 		inline cmp_math_fn char4 operator + (char4 a, char4 b)
 		{
 			return char4_make(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
@@ -1202,46 +1276,6 @@
 			a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w;
 		}
 		inline cmp_math_fn void operator += (ushort4& a, ushort b)
-		{
-			a.x += b; a.y += b; a.z += b; a.w += b;
-		}
-		inline cmp_math_fn int4 operator + (int4 a, int4 b)
-		{
-			return int4_make(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
-		}
-		inline cmp_math_fn int4 operator + (int4 a, int b)
-		{
-			return int4_make(a.x + b, a.y + b, a.z + b, a.w + b);
-		}
-		inline cmp_math_fn int4 operator + (int a, int4 b)
-		{
-			return b + a;
-		}
-		inline cmp_math_fn void operator += (int4& a, int4 b)
-		{
-			a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w;
-		}
-		inline cmp_math_fn void operator += (int4& a, int b)
-		{
-			a.x += b; a.y += b; a.z += b; a.w += b;
-		}
-		inline cmp_math_fn uint4 operator + (uint4 a, uint4 b)
-		{
-			return uint4_make(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
-		}
-		inline cmp_math_fn uint4 operator + (uint4 a, uint b)
-		{
-			return uint4_make(a.x + b, a.y + b, a.z + b, a.w + b);
-		}
-		inline cmp_math_fn uint4 operator + (uint a, uint4 b)
-		{
-			return b + a;
-		}
-		inline cmp_math_fn void operator += (uint4& a, uint4 b)
-		{
-			a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w;
-		}
-		inline cmp_math_fn void operator += (uint4& a, uint b)
 		{
 			a.x += b; a.y += b; a.z += b; a.w += b;
 		}
@@ -1404,6 +1438,46 @@
 		{
 			a.x -= b; a.y -= b;
 		}
+		inline cmp_math_fn int2 operator - (int2 a, int2 b)
+		{
+			return int2_make(a.x - b.x, a.y - b.y);
+		}
+		inline cmp_math_fn int2 operator - (int2 a, int b)
+		{
+			return int2_make(a.x - b, a.y - b);
+		}
+		inline cmp_math_fn int2 operator - (int a, int2 b)
+		{
+			return int2_make(a - b.x, a - b.y);
+		}
+		inline cmp_math_fn void operator -= (int2& a, int2 b)
+		{
+			a.x -= b.x; a.y -= b.y;
+		}
+		inline cmp_math_fn void operator -= (int2& a, int b)
+		{
+			a.x -= b; a.y -= b;
+		}
+		inline cmp_math_fn uint2 operator - (uint2 a, uint2 b)
+		{
+			return uint2_make(a.x - b.x, a.y - b.y);
+		}
+		inline cmp_math_fn uint2 operator - (uint2 a, uint b)
+		{
+			return uint2_make(a.x - b, a.y - b);
+		}
+		inline cmp_math_fn uint2 operator - (uint a, uint2 b)
+		{
+			return uint2_make(a - b.x, a - b.y);
+		}
+		inline cmp_math_fn void operator -= (uint2& a, uint2 b)
+		{
+			a.x -= b.x; a.y -= b.y;
+		}
+		inline cmp_math_fn void operator -= (uint2& a, uint b)
+		{
+			a.x -= b; a.y -= b;
+		}
 		inline cmp_math_fn char2 operator - (char2 a, char2 b)
 		{
 			return char2_make(a.x - b.x, a.y - b.y);
@@ -1481,46 +1555,6 @@
 			a.x -= b.x; a.y -= b.y;
 		}
 		inline cmp_math_fn void operator -= (ushort2& a, ushort b)
-		{
-			a.x -= b; a.y -= b;
-		}
-		inline cmp_math_fn int2 operator - (int2 a, int2 b)
-		{
-			return int2_make(a.x - b.x, a.y - b.y);
-		}
-		inline cmp_math_fn int2 operator - (int2 a, int b)
-		{
-			return int2_make(a.x - b, a.y - b);
-		}
-		inline cmp_math_fn int2 operator - (int a, int2 b)
-		{
-			return int2_make(a - b.x, a - b.y);
-		}
-		inline cmp_math_fn void operator -= (int2& a, int2 b)
-		{
-			a.x -= b.x; a.y -= b.y;
-		}
-		inline cmp_math_fn void operator -= (int2& a, int b)
-		{
-			a.x -= b; a.y -= b;
-		}
-		inline cmp_math_fn uint2 operator - (uint2 a, uint2 b)
-		{
-			return uint2_make(a.x - b.x, a.y - b.y);
-		}
-		inline cmp_math_fn uint2 operator - (uint2 a, uint b)
-		{
-			return uint2_make(a.x - b, a.y - b);
-		}
-		inline cmp_math_fn uint2 operator - (uint a, uint2 b)
-		{
-			return uint2_make(a - b.x, a - b.y);
-		}
-		inline cmp_math_fn void operator -= (uint2& a, uint2 b)
-		{
-			a.x -= b.x; a.y -= b.y;
-		}
-		inline cmp_math_fn void operator -= (uint2& a, uint b)
 		{
 			a.x -= b; a.y -= b;
 		}
@@ -1604,6 +1638,46 @@
 		{
 			a.x -= b; a.y -= b; a.z -= b;
 		}
+		inline cmp_math_fn int3 operator - (int3 a, int3 b)
+		{
+			return int3_make(a.x - b.x, a.y - b.y, a.z - b.z);
+		}
+		inline cmp_math_fn int3 operator - (int3 a, int b)
+		{
+			return int3_make(a.x - b, a.y - b, a.z - b);
+		}
+		inline cmp_math_fn int3 operator - (int a, int3 b)
+		{
+			return int3_make(a - b.x, a - b.y, a - b.z);
+		}
+		inline cmp_math_fn void operator -= (int3& a, int3 b)
+		{
+			a.x -= b.x; a.y -= b.y; a.z -= b.z;
+		}
+		inline cmp_math_fn void operator -= (int3& a, int b)
+		{
+			a.x -= b; a.y -= b; a.z -= b;
+		}
+		inline cmp_math_fn uint3 operator - (uint3 a, uint3 b)
+		{
+			return uint3_make(a.x - b.x, a.y - b.y, a.z - b.z);
+		}
+		inline cmp_math_fn uint3 operator - (uint3 a, uint b)
+		{
+			return uint3_make(a.x - b, a.y - b, a.z - b);
+		}
+		inline cmp_math_fn uint3 operator - (uint a, uint3 b)
+		{
+			return uint3_make(a - b.x, a - b.y, a - b.z);
+		}
+		inline cmp_math_fn void operator -= (uint3& a, uint3 b)
+		{
+			a.x -= b.x; a.y -= b.y; a.z -= b.z;
+		}
+		inline cmp_math_fn void operator -= (uint3& a, uint b)
+		{
+			a.x -= b; a.y -= b; a.z -= b;
+		}
 		inline cmp_math_fn char3 operator - (char3 a, char3 b)
 		{
 			return char3_make(a.x - b.x, a.y - b.y, a.z - b.z);
@@ -1681,46 +1755,6 @@
 			a.x -= b.x; a.y -= b.y; a.z -= b.z;
 		}
 		inline cmp_math_fn void operator -= (ushort3& a, ushort b)
-		{
-			a.x -= b; a.y -= b; a.z -= b;
-		}
-		inline cmp_math_fn int3 operator - (int3 a, int3 b)
-		{
-			return int3_make(a.x - b.x, a.y - b.y, a.z - b.z);
-		}
-		inline cmp_math_fn int3 operator - (int3 a, int b)
-		{
-			return int3_make(a.x - b, a.y - b, a.z - b);
-		}
-		inline cmp_math_fn int3 operator - (int a, int3 b)
-		{
-			return int3_make(a - b.x, a - b.y, a - b.z);
-		}
-		inline cmp_math_fn void operator -= (int3& a, int3 b)
-		{
-			a.x -= b.x; a.y -= b.y; a.z -= b.z;
-		}
-		inline cmp_math_fn void operator -= (int3& a, int b)
-		{
-			a.x -= b; a.y -= b; a.z -= b;
-		}
-		inline cmp_math_fn uint3 operator - (uint3 a, uint3 b)
-		{
-			return uint3_make(a.x - b.x, a.y - b.y, a.z - b.z);
-		}
-		inline cmp_math_fn uint3 operator - (uint3 a, uint b)
-		{
-			return uint3_make(a.x - b, a.y - b, a.z - b);
-		}
-		inline cmp_math_fn uint3 operator - (uint a, uint3 b)
-		{
-			return uint3_make(a - b.x, a - b.y, a - b.z);
-		}
-		inline cmp_math_fn void operator -= (uint3& a, uint3 b)
-		{
-			a.x -= b.x; a.y -= b.y; a.z -= b.z;
-		}
-		inline cmp_math_fn void operator -= (uint3& a, uint b)
 		{
 			a.x -= b; a.y -= b; a.z -= b;
 		}
@@ -1804,6 +1838,46 @@
 		{
 			a.x -= b; a.y -= b; a.z -= b; a.w -= b;
 		}
+		inline cmp_math_fn int4 operator - (int4 a, int4 b)
+		{
+			return int4_make(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
+		}
+		inline cmp_math_fn int4 operator - (int4 a, int b)
+		{
+			return int4_make(a.x - b, a.y - b, a.z - b, a.w - b);
+		}
+		inline cmp_math_fn int4 operator - (int a, int4 b)
+		{
+			return int4_make(a - b.x, a - b.y, a - b.z, a - b.w);
+		}
+		inline cmp_math_fn void operator -= (int4& a, int4 b)
+		{
+			a.x -= b.x; a.y -= b.y; a.z -= b.z; a.w -= b.w;
+		}
+		inline cmp_math_fn void operator -= (int4& a, int b)
+		{
+			a.x -= b; a.y -= b; a.z -= b; a.w -= b;
+		}
+		inline cmp_math_fn uint4 operator - (uint4 a, uint4 b)
+		{
+			return uint4_make(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
+		}
+		inline cmp_math_fn uint4 operator - (uint4 a, uint b)
+		{
+			return uint4_make(a.x - b, a.y - b, a.z - b, a.w - b);
+		}
+		inline cmp_math_fn uint4 operator - (uint a, uint4 b)
+		{
+			return uint4_make(a - b.x, a - b.y, a - b.z, a - b.w);
+		}
+		inline cmp_math_fn void operator -= (uint4& a, uint4 b)
+		{
+			a.x -= b.x; a.y -= b.y; a.z -= b.z; a.w -= b.w;
+		}
+		inline cmp_math_fn void operator -= (uint4& a, uint b)
+		{
+			a.x -= b; a.y -= b; a.z -= b; a.w -= b;
+		}
 		inline cmp_math_fn char4 operator - (char4 a, char4 b)
 		{
 			return char4_make(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
@@ -1881,46 +1955,6 @@
 			a.x -= b.x; a.y -= b.y; a.z -= b.z; a.w -= b.w;
 		}
 		inline cmp_math_fn void operator -= (ushort4& a, ushort b)
-		{
-			a.x -= b; a.y -= b; a.z -= b; a.w -= b;
-		}
-		inline cmp_math_fn int4 operator - (int4 a, int4 b)
-		{
-			return int4_make(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
-		}
-		inline cmp_math_fn int4 operator - (int4 a, int b)
-		{
-			return int4_make(a.x - b, a.y - b, a.z - b, a.w - b);
-		}
-		inline cmp_math_fn int4 operator - (int a, int4 b)
-		{
-			return int4_make(a - b.x, a - b.y, a - b.z, a - b.w);
-		}
-		inline cmp_math_fn void operator -= (int4& a, int4 b)
-		{
-			a.x -= b.x; a.y -= b.y; a.z -= b.z; a.w -= b.w;
-		}
-		inline cmp_math_fn void operator -= (int4& a, int b)
-		{
-			a.x -= b; a.y -= b; a.z -= b; a.w -= b;
-		}
-		inline cmp_math_fn uint4 operator - (uint4 a, uint4 b)
-		{
-			return uint4_make(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
-		}
-		inline cmp_math_fn uint4 operator - (uint4 a, uint b)
-		{
-			return uint4_make(a.x - b, a.y - b, a.z - b, a.w - b);
-		}
-		inline cmp_math_fn uint4 operator - (uint a, uint4 b)
-		{
-			return uint4_make(a - b.x, a - b.y, a - b.z, a - b.w);
-		}
-		inline cmp_math_fn void operator -= (uint4& a, uint4 b)
-		{
-			a.x -= b.x; a.y -= b.y; a.z -= b.z; a.w -= b.w;
-		}
-		inline cmp_math_fn void operator -= (uint4& a, uint b)
 		{
 			a.x -= b; a.y -= b; a.z -= b; a.w -= b;
 		}
@@ -2083,6 +2117,46 @@
 		{
 			a.x *= b; a.y *= b;
 		}
+		inline cmp_math_fn int2 operator * (int2 a, int2 b)
+		{
+			return int2_make(a.x * b.x, a.y * b.y);
+		}
+		inline cmp_math_fn int2 operator * (int2 a, int b)
+		{
+			return int2_make(a.x * b, a.y * b);
+		}
+		inline cmp_math_fn int2 operator * (int a, int2 b)
+		{
+			return b * a;
+		}
+		inline cmp_math_fn void operator *= (int2& a, int2 b)
+		{
+			a.x *= b.x; a.y *= b.y;
+		}
+		inline cmp_math_fn void operator *= (int2& a, int b)
+		{
+			a.x *= b; a.y *= b;
+		}
+		inline cmp_math_fn uint2 operator * (uint2 a, uint2 b)
+		{
+			return uint2_make(a.x * b.x, a.y * b.y);
+		}
+		inline cmp_math_fn uint2 operator * (uint2 a, uint b)
+		{
+			return uint2_make(a.x * b, a.y * b);
+		}
+		inline cmp_math_fn uint2 operator * (uint a, uint2 b)
+		{
+			return b * a;
+		}
+		inline cmp_math_fn void operator *= (uint2& a, uint2 b)
+		{
+			a.x *= b.x; a.y *= b.y;
+		}
+		inline cmp_math_fn void operator *= (uint2& a, uint b)
+		{
+			a.x *= b; a.y *= b;
+		}
 		inline cmp_math_fn char2 operator * (char2 a, char2 b)
 		{
 			return char2_make(a.x * b.x, a.y * b.y);
@@ -2160,46 +2234,6 @@
 			a.x *= b.x; a.y *= b.y;
 		}
 		inline cmp_math_fn void operator *= (ushort2& a, ushort b)
-		{
-			a.x *= b; a.y *= b;
-		}
-		inline cmp_math_fn int2 operator * (int2 a, int2 b)
-		{
-			return int2_make(a.x * b.x, a.y * b.y);
-		}
-		inline cmp_math_fn int2 operator * (int2 a, int b)
-		{
-			return int2_make(a.x * b, a.y * b);
-		}
-		inline cmp_math_fn int2 operator * (int a, int2 b)
-		{
-			return b * a;
-		}
-		inline cmp_math_fn void operator *= (int2& a, int2 b)
-		{
-			a.x *= b.x; a.y *= b.y;
-		}
-		inline cmp_math_fn void operator *= (int2& a, int b)
-		{
-			a.x *= b; a.y *= b;
-		}
-		inline cmp_math_fn uint2 operator * (uint2 a, uint2 b)
-		{
-			return uint2_make(a.x * b.x, a.y * b.y);
-		}
-		inline cmp_math_fn uint2 operator * (uint2 a, uint b)
-		{
-			return uint2_make(a.x * b, a.y * b);
-		}
-		inline cmp_math_fn uint2 operator * (uint a, uint2 b)
-		{
-			return b * a;
-		}
-		inline cmp_math_fn void operator *= (uint2& a, uint2 b)
-		{
-			a.x *= b.x; a.y *= b.y;
-		}
-		inline cmp_math_fn void operator *= (uint2& a, uint b)
 		{
 			a.x *= b; a.y *= b;
 		}
@@ -2283,6 +2317,46 @@
 		{
 			a.x *= b; a.y *= b; a.z *= b;
 		}
+		inline cmp_math_fn int3 operator * (int3 a, int3 b)
+		{
+			return int3_make(a.x * b.x, a.y * b.y, a.z * b.z);
+		}
+		inline cmp_math_fn int3 operator * (int3 a, int b)
+		{
+			return int3_make(a.x * b, a.y * b, a.z * b);
+		}
+		inline cmp_math_fn int3 operator * (int a, int3 b)
+		{
+			return b * a;
+		}
+		inline cmp_math_fn void operator *= (int3& a, int3 b)
+		{
+			a.x *= b.x; a.y *= b.y; a.z *= b.z;
+		}
+		inline cmp_math_fn void operator *= (int3& a, int b)
+		{
+			a.x *= b; a.y *= b; a.z *= b;
+		}
+		inline cmp_math_fn uint3 operator * (uint3 a, uint3 b)
+		{
+			return uint3_make(a.x * b.x, a.y * b.y, a.z * b.z);
+		}
+		inline cmp_math_fn uint3 operator * (uint3 a, uint b)
+		{
+			return uint3_make(a.x * b, a.y * b, a.z * b);
+		}
+		inline cmp_math_fn uint3 operator * (uint a, uint3 b)
+		{
+			return b * a;
+		}
+		inline cmp_math_fn void operator *= (uint3& a, uint3 b)
+		{
+			a.x *= b.x; a.y *= b.y; a.z *= b.z;
+		}
+		inline cmp_math_fn void operator *= (uint3& a, uint b)
+		{
+			a.x *= b; a.y *= b; a.z *= b;
+		}
 		inline cmp_math_fn char3 operator * (char3 a, char3 b)
 		{
 			return char3_make(a.x * b.x, a.y * b.y, a.z * b.z);
@@ -2360,46 +2434,6 @@
 			a.x *= b.x; a.y *= b.y; a.z *= b.z;
 		}
 		inline cmp_math_fn void operator *= (ushort3& a, ushort b)
-		{
-			a.x *= b; a.y *= b; a.z *= b;
-		}
-		inline cmp_math_fn int3 operator * (int3 a, int3 b)
-		{
-			return int3_make(a.x * b.x, a.y * b.y, a.z * b.z);
-		}
-		inline cmp_math_fn int3 operator * (int3 a, int b)
-		{
-			return int3_make(a.x * b, a.y * b, a.z * b);
-		}
-		inline cmp_math_fn int3 operator * (int a, int3 b)
-		{
-			return b * a;
-		}
-		inline cmp_math_fn void operator *= (int3& a, int3 b)
-		{
-			a.x *= b.x; a.y *= b.y; a.z *= b.z;
-		}
-		inline cmp_math_fn void operator *= (int3& a, int b)
-		{
-			a.x *= b; a.y *= b; a.z *= b;
-		}
-		inline cmp_math_fn uint3 operator * (uint3 a, uint3 b)
-		{
-			return uint3_make(a.x * b.x, a.y * b.y, a.z * b.z);
-		}
-		inline cmp_math_fn uint3 operator * (uint3 a, uint b)
-		{
-			return uint3_make(a.x * b, a.y * b, a.z * b);
-		}
-		inline cmp_math_fn uint3 operator * (uint a, uint3 b)
-		{
-			return b * a;
-		}
-		inline cmp_math_fn void operator *= (uint3& a, uint3 b)
-		{
-			a.x *= b.x; a.y *= b.y; a.z *= b.z;
-		}
-		inline cmp_math_fn void operator *= (uint3& a, uint b)
 		{
 			a.x *= b; a.y *= b; a.z *= b;
 		}
@@ -2483,6 +2517,46 @@
 		{
 			a.x *= b; a.y *= b; a.z *= b; a.w *= b;
 		}
+		inline cmp_math_fn int4 operator * (int4 a, int4 b)
+		{
+			return int4_make(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
+		}
+		inline cmp_math_fn int4 operator * (int4 a, int b)
+		{
+			return int4_make(a.x * b, a.y * b, a.z * b, a.w * b);
+		}
+		inline cmp_math_fn int4 operator * (int a, int4 b)
+		{
+			return b * a;
+		}
+		inline cmp_math_fn void operator *= (int4& a, int4 b)
+		{
+			a.x *= b.x; a.y *= b.y; a.z *= b.z; a.w *= b.w;
+		}
+		inline cmp_math_fn void operator *= (int4& a, int b)
+		{
+			a.x *= b; a.y *= b; a.z *= b; a.w *= b;
+		}
+		inline cmp_math_fn uint4 operator * (uint4 a, uint4 b)
+		{
+			return uint4_make(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
+		}
+		inline cmp_math_fn uint4 operator * (uint4 a, uint b)
+		{
+			return uint4_make(a.x * b, a.y * b, a.z * b, a.w * b);
+		}
+		inline cmp_math_fn uint4 operator * (uint a, uint4 b)
+		{
+			return b * a;
+		}
+		inline cmp_math_fn void operator *= (uint4& a, uint4 b)
+		{
+			a.x *= b.x; a.y *= b.y; a.z *= b.z; a.w *= b.w;
+		}
+		inline cmp_math_fn void operator *= (uint4& a, uint b)
+		{
+			a.x *= b; a.y *= b; a.z *= b; a.w *= b;
+		}
 		inline cmp_math_fn char4 operator * (char4 a, char4 b)
 		{
 			return char4_make(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
@@ -2560,46 +2634,6 @@
 			a.x *= b.x; a.y *= b.y; a.z *= b.z; a.w *= b.w;
 		}
 		inline cmp_math_fn void operator *= (ushort4& a, ushort b)
-		{
-			a.x *= b; a.y *= b; a.z *= b; a.w *= b;
-		}
-		inline cmp_math_fn int4 operator * (int4 a, int4 b)
-		{
-			return int4_make(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
-		}
-		inline cmp_math_fn int4 operator * (int4 a, int b)
-		{
-			return int4_make(a.x * b, a.y * b, a.z * b, a.w * b);
-		}
-		inline cmp_math_fn int4 operator * (int a, int4 b)
-		{
-			return b * a;
-		}
-		inline cmp_math_fn void operator *= (int4& a, int4 b)
-		{
-			a.x *= b.x; a.y *= b.y; a.z *= b.z; a.w *= b.w;
-		}
-		inline cmp_math_fn void operator *= (int4& a, int b)
-		{
-			a.x *= b; a.y *= b; a.z *= b; a.w *= b;
-		}
-		inline cmp_math_fn uint4 operator * (uint4 a, uint4 b)
-		{
-			return uint4_make(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
-		}
-		inline cmp_math_fn uint4 operator * (uint4 a, uint b)
-		{
-			return uint4_make(a.x * b, a.y * b, a.z * b, a.w * b);
-		}
-		inline cmp_math_fn uint4 operator * (uint a, uint4 b)
-		{
-			return b * a;
-		}
-		inline cmp_math_fn void operator *= (uint4& a, uint4 b)
-		{
-			a.x *= b.x; a.y *= b.y; a.z *= b.z; a.w *= b.w;
-		}
-		inline cmp_math_fn void operator *= (uint4& a, uint b)
 		{
 			a.x *= b; a.y *= b; a.z *= b; a.w *= b;
 		}
@@ -2682,6 +2716,14 @@
 		{
 			return a.x * b.x + a.y * b.y;
 		}
+		inline cmp_math_fn int dot(int2 a, int2 b)
+		{
+			return a.x * b.x + a.y * b.y;
+		}
+		inline cmp_math_fn uint dot(uint2 a, uint2 b)
+		{
+			return a.x * b.x + a.y * b.y;
+		}
 		inline cmp_math_fn char dot(char2 a, char2 b)
 		{
 			return a.x * b.x + a.y * b.y;
@@ -2695,14 +2737,6 @@
 			return a.x * b.x + a.y * b.y;
 		}
 		inline cmp_math_fn ushort dot(ushort2 a, ushort2 b)
-		{
-			return a.x * b.x + a.y * b.y;
-		}
-		inline cmp_math_fn int dot(int2 a, int2 b)
-		{
-			return a.x * b.x + a.y * b.y;
-		}
-		inline cmp_math_fn uint dot(uint2 a, uint2 b)
 		{
 			return a.x * b.x + a.y * b.y;
 		}
@@ -2722,6 +2756,14 @@
 		{
 			return a.x * b.x + a.y * b.y + a.z * b.z;
 		}
+		inline cmp_math_fn int dot(int3 a, int3 b)
+		{
+			return a.x * b.x + a.y * b.y + a.z * b.z;
+		}
+		inline cmp_math_fn uint dot(uint3 a, uint3 b)
+		{
+			return a.x * b.x + a.y * b.y + a.z * b.z;
+		}
 		inline cmp_math_fn char dot(char3 a, char3 b)
 		{
 			return a.x * b.x + a.y * b.y + a.z * b.z;
@@ -2735,14 +2777,6 @@
 			return a.x * b.x + a.y * b.y + a.z * b.z;
 		}
 		inline cmp_math_fn ushort dot(ushort3 a, ushort3 b)
-		{
-			return a.x * b.x + a.y * b.y + a.z * b.z;
-		}
-		inline cmp_math_fn int dot(int3 a, int3 b)
-		{
-			return a.x * b.x + a.y * b.y + a.z * b.z;
-		}
-		inline cmp_math_fn uint dot(uint3 a, uint3 b)
 		{
 			return a.x * b.x + a.y * b.y + a.z * b.z;
 		}
@@ -2762,6 +2796,14 @@
 		{
 			return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
 		}
+		inline cmp_math_fn int dot(int4 a, int4 b)
+		{
+			return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+		}
+		inline cmp_math_fn uint dot(uint4 a, uint4 b)
+		{
+			return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+		}
 		inline cmp_math_fn char dot(char4 a, char4 b)
 		{
 			return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
@@ -2775,14 +2817,6 @@
 			return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
 		}
 		inline cmp_math_fn ushort dot(ushort4 a, ushort4 b)
-		{
-			return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
-		}
-		inline cmp_math_fn int dot(int4 a, int4 b)
-		{
-			return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
-		}
-		inline cmp_math_fn uint dot(uint4 a, uint4 b)
 		{
 			return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
 		}
@@ -2879,6 +2913,14 @@
 
 
 #endif
+
+
+#ifdef CMP_OPENCL
+	#define floorf floor
+#endif
+
+
+#endif	// Prologue check
 
 
 #endif	// INCLUDED_CBPP_MATH_H

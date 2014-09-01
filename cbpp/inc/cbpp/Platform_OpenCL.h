@@ -2,6 +2,7 @@
 #ifndef INCLUDED_PLATFORM_OPENCL_CUH
 #define INCLUDED_PLATFORM_OPENCL_CUH
 
+
 //
 // Toggle double support
 //
@@ -66,110 +67,6 @@
 #define cmp_surf_write_1d(d, s, x)
 #define cmp_surf_write_2d(d, s, x, y)
 #define cmp_surf_write_3d(d, s, x, y, z)
-
-
-//
-// Vector construction abstractions
-//
-cmp_device_fn uint2 cmp_make_uint2(uint x, uint y)
-{
-	return (uint2){ x, y };
-}
-cmp_device_fn uint3 cmp_make_uint3(uint x, uint y, uint z)
-{
-	return (uint3){ x, y, z };
-}
-cmp_device_fn uint4 cmp_make_uint4(uint x, uint y, uint z, uint w)
-{
-	return (uint4){ x, y, z, w };
-}
-cmp_device_fn float2 cmp_make_float2(float x, float y)
-{
-	return (float2){ x, y };
-}
-cmp_device_fn float3 cmp_make_float3(float x, float y, float z)
-{
-	return (float3){ x, y, z };
-}
-cmp_device_fn float4 cmp_make_float4(float x, float y, float z, float w)
-{
-	return (float4){ x, y, z, w };
-}
-
-cmp_device_fn double2 cmp_make_double2(double x, double y)
-{
-	return (double2){ x, y };
-}
-cmp_device_fn double3 cmp_make_double3(double x, double y, double z)
-{
-	return (double3){ x, y, z };
-}
-cmp_device_fn double4 cmp_make_double4(double x, double y, double z, double w)
-{
-	return (double4){ x, y, z, w };
-}
-
-
-//
-// Vector conversion abstractions
-//
-cmp_device_fn int3 cmp_float3_to_int3(float3 f)
-{
-	return convert_int3(f);
-}
-cmp_device_fn float3 cmp_float4_to_float3(float4 f)
-{
-	return f.xyz;
-}
-cmp_device_fn double3 cmp_float4_to_double3(float4 f)
-{
-	return convert_double3(f.xyz);
-}
-cmp_device_fn double3 cmp_double4_to_double3(double4 f)
-{
-	return f.xyz;
-}
-
-cmp_device_fn float3 cmp_double3_to_float3(double3 f)
-{
-	return convert_float3(f);
-}
-cmp_device_fn int3 cmp_double3_to_int3(double3 f)
-{
-	return convert_int3(f);
-}
-
-cmp_device_fn float3 cmp_int3_to_float3(int3 i)
-{
-	return convert_float3(i);
-}
-cmp_device_fn double3 cmp_int3_to_double3(int3 i)
-{
-	return convert_double3(i);
-}
-
-
-//
-// Atomic operations
-//
-cmp_device_fn uint cmp_atomic_or(cmp_global uint* p, uint val)
-{
-	return atomic_or(p, val);
-}
-cmp_device_fn uint cmp_atomic_min(cmp_global uint* p, uint val)
-{
-	return atomic_min(p, val);
-}
-cmp_device_fn uint cmp_atomic_max(cmp_global uint* p, uint val)
-{
-	return atomic_max(p, val);
-}
-
-
-cmp_device_fn float3 cmp_floor(float3 v)
-{
-	return floor(v);
-}
 
 
 //
