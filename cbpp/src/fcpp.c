@@ -85,48 +85,8 @@ SOFTWARE.
 #define FALSE			0
 #endif
 
-/*
- * Define the HOST operating system.  This is needed so that
- * cpp can use appropriate filename conventions.
- */
-#define SYS_UNKNOWN		0
-#define SYS_UNIX		1
-#define SYS_VMS 		2
-#define SYS_RSX 		3
-#define SYS_RT11		4
-#define SYS_LATTICE		5
-#define SYS_ONYX		6
-#define SYS_68000		7
-#define SYS_AMIGADOS		8
-
-#ifndef HOST
-#ifdef	unix
-#define HOST			SYS_UNIX
-#else
-#ifdef	amiga
-#define HOST			SYS_AMIGADOS
-#endif
-#endif
-#endif
 
 /*
- * We assume that the target is the same as the host system
- */
-#ifndef TARGET
-#define TARGET			HOST
-#endif
-
-/*
- * In order to predefine machine-dependent constants,
- * several strings are defined here:
- *
- * MACHINE	defines the target cpu (by name)
- * SYSTEM	defines the target operating system
- * COMPILER	defines the target compiler
- *
- *	The above may be #defined as "" if they are not wanted.
- *	They should not be #defined as NULL.
- *
  * LINE_PREFIX	defines the # output line prefix, if not "line"
  *		This should be defined as "" if cpp is to replace
  *		the "standard" C pre-processor.
@@ -159,22 +119,6 @@ SOFTWARE.
  *		According to K&R V2 (page 232), this is not allowed.
  */
 #define OK_SIZEOF TRUE
-/*
- * S_CHAR etc.	Define the sizeof the basic TARGET machine word types.
- *		By default, sizes are set to the values for the HOST
- *		computer.  If this is inappropriate, see the code in
- *		cpp3.c for details on what to change.  Also, if you
- *		have a machine where sizeof (signed int) differs from
- *		sizeof (unsigned int), you will have to edit code and
- *		tables in cpp3.c (and extend the -S option definition.)
- *
- * CPP_LIBRARY	May be defined if you have a site-specific include directory
- *		which is to be searched *before* the operating-system
- *		specific directories.
- */
-
-#define MACHINE 		"amiga", "m68000"
-#define SYSTEM			"amigados"
 
 
 /*
@@ -361,19 +305,10 @@ SOFTWARE.
  * functions called from only one place. There might still be some
  * functions that should have this macro.
  */
-#ifdef AMIGA
-#define INLINE __inline /* Amiga compiler SAS/C 6.x supports this! */
-#else
 #define INLINE /* don't support that kind of stuff */
-#endif
 
-#if defined(AMIGA) && defined(SHARED)
-#define PREFIX __asm __saveds
-#define REG(x) register __ ## x
-#else
 #define PREFIX
 #define REG(x)
-#endif
 
 /*
  * SBSIZE defines the number of hash-table slots for the symbol table.
@@ -587,12 +522,6 @@ typedef struct sizes {
 /*
  * Externs
  */
-
-// @donw
-#ifdef AMIGA
-#include <dos.h>
-extern int _OSERR;
-#endif
 
 extern char	type[]; 		/* Character classifier 	*/
 
@@ -978,15 +907,6 @@ char *Getmem(struct Global *, int);
 ReturnCode openinclude(struct Global *, char *, int);
 ReturnCode expstuff(struct Global *, char *, char *);
 
-#if defined(AMIGA)
-#include        <dos.h>
-#if defined(SHARED)
-int _OSERR=0;
-char *_ProgramName="junk";
-void __stdargs _XCEXIT(long a) { return; }
-#endif
-#endif
-
 FILE_LOCAL ReturnCode output(struct Global *, int); /* Output one character */
 FILE_LOCAL void sharp(struct Global *);
 INLINE FILE_LOCAL ReturnCode cppmain(struct Global *);
@@ -1024,12 +944,7 @@ int fppPreProcess(struct fppTag *tags)
 
   /* names defined at cpp start */
   global->preset[0]="frexxcpp"; /* This is the Frexx cpp program */
-#if defined( amiga )
-  global->preset[1]="amiga";
-  global->preset[2]="m68000";
-  global->preset[3]="amigados";
-  global->preset[4]= NULL;              /* Must be last         */
-#elif defined( unix )
+#if defined( unix )
   global->preset[1]="unix";
   global->preset[2]= NULL;
 #endif
@@ -1475,7 +1390,7 @@ void Putchar(struct Global *global, int c)
     global->output(c, global->userdata);
   else
     putchar(c);
-#else /* amiga */
+#else
   global->output(c, global->userdata);
 #endif
 }
@@ -1545,10 +1460,6 @@ void sharp(struct Global *global)
   global->wrongline = FALSE;
   return;
 }
-
-#ifdef _AMIGA
-#include <proto/dos.h>
-#endif
 
 FILE_LOCAL void dump_line(struct Global *, int *);
 FILE_LOCAL ReturnCode doif(struct Global *, int);
@@ -2131,10 +2042,6 @@ ReturnCode doinclude( struct Global *global )
     return( FPP_OK );
 }
 
-#ifdef _AMIGA
-ReturnCode MultiAssignLoad( struct Global *global, char *incptr, char *filename, char *tmpname );
-#endif
-
 ReturnCode openinclude( struct Global *global,
     char *filename,     /* Input file name         */
     int searchlocal )   /* TRUE if #include "file" */
@@ -2151,19 +2058,11 @@ ReturnCode openinclude( struct Global *global,
     char tmpname[NWORK]; /* Filename work area    */
     int len;
 
-    #if HOST == SYS_AMIGADOS
-    if( strchr (filename, ':') != NULL )
-        {
-        if( ! openfile( global, filename ) )
-            return(FPP_OK);
-        }
-    #else
     if( filename[0] == '/' )
         {
         if( ! openfile( global, filename ) )
             return(FPP_OK);
         }
-    #endif
 
     if( searchlocal && global->allowincludelocal )
         {
@@ -2201,30 +2100,11 @@ ReturnCode openinclude( struct Global *global,
             }
         else
             {
-            #if HOST == SYS_AMIGADOS
-            if( (*incptr)[len-1] != '/' && (*incptr)[len-1] != ':' )
-	            sprintf( tmpname, "%s/%s", *incptr, filename );
-            #else
             if( (*incptr)[len-1] != '/' )
                 sprintf( tmpname, "%s/%s", *incptr, filename );
-            #endif
             else
                 sprintf( tmpname, "%s%s", *incptr, filename );
 
-            #if HOST == SYS_AMIGADOS
-            //
-            //  amp July 9, 1997
-            //
-            //  OK, hack in multiassign support for the buitin
-            //  search directories...
-            //
-            if( (*incptr)[len-1] == ':' )
-                {
-                if( ! MultiAssignLoad( global, *incptr, filename, tmpname ) )
-                    return(FPP_OK);
-                }
-            else
-            #endif
             if( !openfile( global, tmpname ) )
                 return(FPP_OK);
             }
@@ -2245,22 +2125,8 @@ int hasdirectory( char *source,   /* Directory to examine         */
 
     char *tp2;
 
-    #if HOST == SYS_AMIGADOS
-    char *tp1;
-
-    if( (tp1 = strrchr( source, ':' ) ) == NULL )
-        tp1 = source;
-
-    if( (tp2 = strrchr( tp1, '/' ) ) == NULL )
-        tp2 = tp1;
-
-    if( tp2 == source )
-        return (FALSE);
-
-    #else
     if( (tp2 = strrchr( source, '/' ) ) == NULL )
         return(FALSE);
-    #endif
 
     strncpy( result, source, tp2 - source + 1 );
 
@@ -2268,74 +2134,6 @@ int hasdirectory( char *source,   /* Directory to examine         */
 
     return( TRUE );
 }
-
-#ifdef _AMIGA
-//
-//  amp July 9, 1997
-//
-//  Use the OS Luke...
-//
-//  We do the sneaky version and let the OS do all
-//  the hard work so we don't have to mess around
-//  a lot ;)
-//
-ReturnCode MultiAssignLoad( struct Global *global, char *incptr, char *filename, char *tmpname )
-
-{ /* MultiAssignLoad */
-
-    struct MsgPort  *FSTask;
-    struct DevProc  *DevProc = NULL;
-    LONG            RtnCode = FPP_NO_INCLUDE;
-
-    FSTask = GetFileSysTask();
-
-    do
-        {
-        //
-        //  This should not bring up a requester.
-        //  check to see if cpp does in fact tweek
-        //  the process WindowPtr.
-        //
-        DevProc = GetDeviceProc( incptr, DevProc );
-
-        if( DevProc )
-            {
-            SetFileSysTask( DevProc->dvp_Port );
-
-            //
-            //  Normally we would pass the lock and filename
-            //  to the Load() routine, which would CD to the
-            //  directory and Open(filename), but in order to
-            //  satisfy the exisiting openfile() function, we
-            //  bite the bullet and build the complete pathspec
-            //  rather than add the standard Load() routine.
-            //
-            if( NameFromLock( DevProc->dvp_Lock, tmpname, NWORK ) )
-                {
-                AddPart( tmpname, filename, NWORK );
-
-                RtnCode = openfile( global, tmpname );
-
-                if( ! RtnCode )
-                    break;
-                }
-            }
-
-        } while ( RtnCode &&
-            DevProc &&
-            (DevProc->dvp_Flags & DVPF_ASSIGN) &&
-            IoErr() == ERROR_OBJECT_NOT_FOUND); /* repeat if multi-assign */
-
-    SetFileSysTask( FSTask );
-
-    if( DevProc )
-        FreeDeviceProc( DevProc );
-
-    return RtnCode;
-
-} /* MultiAssignLoad */
-#endif  //_AMIGA
-
 
 ReturnCode openfile(struct Global *global, char *filename)
 {
@@ -5258,9 +5056,6 @@ void domsg(struct Global *global,
 #if defined(UNIX)
   else
     vfprintf(stderr, ErrorMessage[error], arg);
-#elif defined(AMIGA)
-  else
-    return;
 #endif
   Error(global, "\n");
 
