@@ -189,13 +189,16 @@ std::vector<char> PreProcessFile(const Arguments& args, std::string filename, co
 	tagptr->data = (void*)FALSE;
 	tagptr++;
 
+	// NOTE: Ignore this comment for now, I've set the option to TRUE. Will investigate why it's now
+	// working when I get a chance.
+	//
 	// When using the "-show_includes" option I would like cbpp to output the FULL PATH to included files.
 	// When you do a local include "X", fcpp will only print the relative path to the included file.
 	// Rather than refactoring the internals of fcpp I've added this new tag which forces all includes
 	// to go down the non-local search path route. This requires the directory of the input file to be
 	// registered as an include directory manually.
 	tagptr->tag = FPPTAG_ALLOW_INCLUDE_LOCAL;
-	tagptr->data = (void*)FALSE;
+	tagptr->data = (void*)TRUE;
 	tagptr++;
 
 	// Promote the input filename to an absolute path so that relative paths can provide an include directory
