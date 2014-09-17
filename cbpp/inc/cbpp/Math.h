@@ -2912,6 +2912,414 @@
 	}
 
 
+	// Min ---------------------------------------------------------------------------------------------
+	/*$pycgen
+		min = """
+		inline cmp_math_fn T min(T a, T b)
+		{
+			return a < b ? a : b;
+		}
+		"""
+
+		min2 = """
+		inline cmp_math_fn T2 min(T2 a, T2 b)
+		{
+			return T2_make(min(a.x, b.x), min(a.y, b.y));
+		}
+		"""
+
+		min3 ="""
+		inline cmp_math_fn T3 min(T3 a, T3 b)
+		{
+			return T3_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z));
+		}
+		"""
+
+		min4 = """
+		inline cmp_math_fn T4 min(T4 a, T4 b)
+		{
+			return T4_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w));
+		}
+		"""
+
+		EmitLn("#ifndef CMP_CUDA")
+		EmitRepl(min, "T:" + "float,double,uint")
+		EmitLn("#endif")
+		EmitRepl(min, "T:" + "int,char,uchar,short,ushort,long,ulong")
+
+		EmitRepl(min2, "T:" + all_types)
+		EmitRepl(min3, "T:" + all_types)
+		EmitRepl(min4, "T:" + all_types)
+	*/
+	//$pycgen-begin
+		#ifndef CMP_CUDA
+		inline cmp_math_fn float min(float a, float b)
+		{
+			return a < b ? a : b;
+		}
+		inline cmp_math_fn double min(double a, double b)
+		{
+			return a < b ? a : b;
+		}
+		inline cmp_math_fn uint min(uint a, uint b)
+		{
+			return a < b ? a : b;
+		}
+		#endif
+		inline cmp_math_fn int min(int a, int b)
+		{
+			return a < b ? a : b;
+		}
+		inline cmp_math_fn char min(char a, char b)
+		{
+			return a < b ? a : b;
+		}
+		inline cmp_math_fn uchar min(uchar a, uchar b)
+		{
+			return a < b ? a : b;
+		}
+		inline cmp_math_fn short min(short a, short b)
+		{
+			return a < b ? a : b;
+		}
+		inline cmp_math_fn ushort min(ushort a, ushort b)
+		{
+			return a < b ? a : b;
+		}
+		inline cmp_math_fn long min(long a, long b)
+		{
+			return a < b ? a : b;
+		}
+		inline cmp_math_fn ulong min(ulong a, ulong b)
+		{
+			return a < b ? a : b;
+		}
+		inline cmp_math_fn float2 min(float2 a, float2 b)
+		{
+			return float2_make(min(a.x, b.x), min(a.y, b.y));
+		}
+		inline cmp_math_fn double2 min(double2 a, double2 b)
+		{
+			return double2_make(min(a.x, b.x), min(a.y, b.y));
+		}
+		inline cmp_math_fn int2 min(int2 a, int2 b)
+		{
+			return int2_make(min(a.x, b.x), min(a.y, b.y));
+		}
+		inline cmp_math_fn uint2 min(uint2 a, uint2 b)
+		{
+			return uint2_make(min(a.x, b.x), min(a.y, b.y));
+		}
+		inline cmp_math_fn char2 min(char2 a, char2 b)
+		{
+			return char2_make(min(a.x, b.x), min(a.y, b.y));
+		}
+		inline cmp_math_fn uchar2 min(uchar2 a, uchar2 b)
+		{
+			return uchar2_make(min(a.x, b.x), min(a.y, b.y));
+		}
+		inline cmp_math_fn short2 min(short2 a, short2 b)
+		{
+			return short2_make(min(a.x, b.x), min(a.y, b.y));
+		}
+		inline cmp_math_fn ushort2 min(ushort2 a, ushort2 b)
+		{
+			return ushort2_make(min(a.x, b.x), min(a.y, b.y));
+		}
+		inline cmp_math_fn long2 min(long2 a, long2 b)
+		{
+			return long2_make(min(a.x, b.x), min(a.y, b.y));
+		}
+		inline cmp_math_fn ulong2 min(ulong2 a, ulong2 b)
+		{
+			return ulong2_make(min(a.x, b.x), min(a.y, b.y));
+		}
+		inline cmp_math_fn float3 min(float3 a, float3 b)
+		{
+			return float3_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z));
+		}
+		inline cmp_math_fn double3 min(double3 a, double3 b)
+		{
+			return double3_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z));
+		}
+		inline cmp_math_fn int3 min(int3 a, int3 b)
+		{
+			return int3_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z));
+		}
+		inline cmp_math_fn uint3 min(uint3 a, uint3 b)
+		{
+			return uint3_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z));
+		}
+		inline cmp_math_fn char3 min(char3 a, char3 b)
+		{
+			return char3_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z));
+		}
+		inline cmp_math_fn uchar3 min(uchar3 a, uchar3 b)
+		{
+			return uchar3_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z));
+		}
+		inline cmp_math_fn short3 min(short3 a, short3 b)
+		{
+			return short3_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z));
+		}
+		inline cmp_math_fn ushort3 min(ushort3 a, ushort3 b)
+		{
+			return ushort3_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z));
+		}
+		inline cmp_math_fn long3 min(long3 a, long3 b)
+		{
+			return long3_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z));
+		}
+		inline cmp_math_fn ulong3 min(ulong3 a, ulong3 b)
+		{
+			return ulong3_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z));
+		}
+		inline cmp_math_fn float4 min(float4 a, float4 b)
+		{
+			return float4_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w));
+		}
+		inline cmp_math_fn double4 min(double4 a, double4 b)
+		{
+			return double4_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w));
+		}
+		inline cmp_math_fn int4 min(int4 a, int4 b)
+		{
+			return int4_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w));
+		}
+		inline cmp_math_fn uint4 min(uint4 a, uint4 b)
+		{
+			return uint4_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w));
+		}
+		inline cmp_math_fn char4 min(char4 a, char4 b)
+		{
+			return char4_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w));
+		}
+		inline cmp_math_fn uchar4 min(uchar4 a, uchar4 b)
+		{
+			return uchar4_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w));
+		}
+		inline cmp_math_fn short4 min(short4 a, short4 b)
+		{
+			return short4_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w));
+		}
+		inline cmp_math_fn ushort4 min(ushort4 a, ushort4 b)
+		{
+			return ushort4_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w));
+		}
+		inline cmp_math_fn long4 min(long4 a, long4 b)
+		{
+			return long4_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w));
+		}
+		inline cmp_math_fn ulong4 min(ulong4 a, ulong4 b)
+		{
+			return ulong4_make(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w));
+		}
+	//$pycgen-end
+
+
+	// Max ---------------------------------------------------------------------------------------------
+	/*$pycgen
+		max = """
+		inline cmp_math_fn T max(T a, T b)
+		{
+			return a > b ? a : b;
+		}
+		"""
+
+		max2 = """
+		inline cmp_math_fn T2 max(T2 a, T2 b)
+		{
+			return T2_make(max(a.x, b.x), max(a.y, b.y));
+		}
+		"""
+
+		max3 ="""
+		inline cmp_math_fn T3 max(T3 a, T3 b)
+		{
+			return T3_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
+		}
+		"""
+
+		max4 = """
+		inline cmp_math_fn T4 max(T4 a, T4 b)
+		{
+			return T4_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w));
+		}
+		"""
+
+		EmitLn("#ifndef CMP_CUDA")
+		EmitRepl(max, "T:" + "float,double,uint")
+		EmitLn("#endif")
+		EmitRepl(max, "T:" + "int,char,uchar,short,ushort,long,ulong")
+
+		EmitRepl(max2, "T:" + all_types)
+		EmitRepl(max3, "T:" + all_types)
+		EmitRepl(max4, "T:" + all_types)
+	*/
+	//$pycgen-begin
+		#ifndef CMP_CUDA
+		inline cmp_math_fn float max(float a, float b)
+		{
+			return a > b ? a : b;
+		}
+		inline cmp_math_fn double max(double a, double b)
+		{
+			return a > b ? a : b;
+		}
+		inline cmp_math_fn uint max(uint a, uint b)
+		{
+			return a > b ? a : b;
+		}
+		#endif
+		inline cmp_math_fn int max(int a, int b)
+		{
+			return a > b ? a : b;
+		}
+		inline cmp_math_fn char max(char a, char b)
+		{
+			return a > b ? a : b;
+		}
+		inline cmp_math_fn uchar max(uchar a, uchar b)
+		{
+			return a > b ? a : b;
+		}
+		inline cmp_math_fn short max(short a, short b)
+		{
+			return a > b ? a : b;
+		}
+		inline cmp_math_fn ushort max(ushort a, ushort b)
+		{
+			return a > b ? a : b;
+		}
+		inline cmp_math_fn long max(long a, long b)
+		{
+			return a > b ? a : b;
+		}
+		inline cmp_math_fn ulong max(ulong a, ulong b)
+		{
+			return a > b ? a : b;
+		}
+		inline cmp_math_fn float2 max(float2 a, float2 b)
+		{
+			return float2_make(max(a.x, b.x), max(a.y, b.y));
+		}
+		inline cmp_math_fn double2 max(double2 a, double2 b)
+		{
+			return double2_make(max(a.x, b.x), max(a.y, b.y));
+		}
+		inline cmp_math_fn int2 max(int2 a, int2 b)
+		{
+			return int2_make(max(a.x, b.x), max(a.y, b.y));
+		}
+		inline cmp_math_fn uint2 max(uint2 a, uint2 b)
+		{
+			return uint2_make(max(a.x, b.x), max(a.y, b.y));
+		}
+		inline cmp_math_fn char2 max(char2 a, char2 b)
+		{
+			return char2_make(max(a.x, b.x), max(a.y, b.y));
+		}
+		inline cmp_math_fn uchar2 max(uchar2 a, uchar2 b)
+		{
+			return uchar2_make(max(a.x, b.x), max(a.y, b.y));
+		}
+		inline cmp_math_fn short2 max(short2 a, short2 b)
+		{
+			return short2_make(max(a.x, b.x), max(a.y, b.y));
+		}
+		inline cmp_math_fn ushort2 max(ushort2 a, ushort2 b)
+		{
+			return ushort2_make(max(a.x, b.x), max(a.y, b.y));
+		}
+		inline cmp_math_fn long2 max(long2 a, long2 b)
+		{
+			return long2_make(max(a.x, b.x), max(a.y, b.y));
+		}
+		inline cmp_math_fn ulong2 max(ulong2 a, ulong2 b)
+		{
+			return ulong2_make(max(a.x, b.x), max(a.y, b.y));
+		}
+		inline cmp_math_fn float3 max(float3 a, float3 b)
+		{
+			return float3_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
+		}
+		inline cmp_math_fn double3 max(double3 a, double3 b)
+		{
+			return double3_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
+		}
+		inline cmp_math_fn int3 max(int3 a, int3 b)
+		{
+			return int3_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
+		}
+		inline cmp_math_fn uint3 max(uint3 a, uint3 b)
+		{
+			return uint3_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
+		}
+		inline cmp_math_fn char3 max(char3 a, char3 b)
+		{
+			return char3_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
+		}
+		inline cmp_math_fn uchar3 max(uchar3 a, uchar3 b)
+		{
+			return uchar3_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
+		}
+		inline cmp_math_fn short3 max(short3 a, short3 b)
+		{
+			return short3_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
+		}
+		inline cmp_math_fn ushort3 max(ushort3 a, ushort3 b)
+		{
+			return ushort3_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
+		}
+		inline cmp_math_fn long3 max(long3 a, long3 b)
+		{
+			return long3_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
+		}
+		inline cmp_math_fn ulong3 max(ulong3 a, ulong3 b)
+		{
+			return ulong3_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
+		}
+		inline cmp_math_fn float4 max(float4 a, float4 b)
+		{
+			return float4_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w));
+		}
+		inline cmp_math_fn double4 max(double4 a, double4 b)
+		{
+			return double4_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w));
+		}
+		inline cmp_math_fn int4 max(int4 a, int4 b)
+		{
+			return int4_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w));
+		}
+		inline cmp_math_fn uint4 max(uint4 a, uint4 b)
+		{
+			return uint4_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w));
+		}
+		inline cmp_math_fn char4 max(char4 a, char4 b)
+		{
+			return char4_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w));
+		}
+		inline cmp_math_fn uchar4 max(uchar4 a, uchar4 b)
+		{
+			return uchar4_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w));
+		}
+		inline cmp_math_fn short4 max(short4 a, short4 b)
+		{
+			return short4_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w));
+		}
+		inline cmp_math_fn ushort4 max(ushort4 a, ushort4 b)
+		{
+			return ushort4_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w));
+		}
+		inline cmp_math_fn long4 max(long4 a, long4 b)
+		{
+			return long4_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w));
+		}
+		inline cmp_math_fn ulong4 max(ulong4 a, ulong4 b)
+		{
+			return ulong4_make(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w));
+		}
+	//$pycgen-end
 #endif
 
 
