@@ -9,6 +9,10 @@
 
 #ifdef CMP_CUDA
 
+	cmp_device_fn uint cmp_atomic_inc(uint* p)
+	{
+		return atomicAdd(p, 1);
+	}
 	cmp_device_fn uint cmp_atomic_or(uint* p, uint val)
 	{
 		return atomicOr(p, val);
@@ -24,6 +28,10 @@
 
 #elif CMP_OPENCL
 
+	cmp_device_fn uint cmp_atomic_inc(cmp_global uint* p)
+	{
+		return atomic_inc(p);
+	}
 	cmp_device_fn uint cmp_atomic_or(cmp_global uint* p, uint val)
 	{
 		return atomic_or(p, val);
@@ -40,6 +48,12 @@
 #elif CMP_CPP
 
 	// TODO: NOT atomic in C++ land - is this necessary?
+	cmp_device_fn uint cmp_atomic_inc(uint* p)
+	{
+		uint old = *p;
+		*p += 1;
+		return old;
+	}
 	cmp_device_fn uint cmp_atomic_or(uint* p, uint val)
 	{
 		uint old = *p;
